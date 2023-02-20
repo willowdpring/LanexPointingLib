@@ -7,6 +7,7 @@ Created on Thu Dec 15 15:21:22 2022
 A library for fiting 2 dimensional gausians to 2d arrays
 
 """
+
 import numpy as np
 import lmfit as lm
 import matplotlib.pyplot as plt
