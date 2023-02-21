@@ -220,7 +220,7 @@ def getest2DGF(x, y, I):
     sx = major
     sy = minor
     ofe = np.percentile(I, 20)
-    return (A, of, x0, y0, sx, sy, theta)
+    return (A, ofe, x0, y0, sx, sy, theta)
 
 
 def getestdbl2DGF(x, y, I):

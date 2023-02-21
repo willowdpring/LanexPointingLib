@@ -4,3 +4,16 @@ A Program for justifying and analysing images of lanex screens as a diagnostic f
 settings can be configured in the 
 pointing2d_settings.py file then the 
 pointing2d_main.py file can be run to execute the program
+
+REQUIREMENTS:
+    numpy
+    numba
+    scipy
+    pillow
+    matplotlib
+    lmfit
+    opencv
+
+installation : 
+    conda install numpy numba scipy pillow matplotlib -y
+    conda install -c conda-forge lmfit opencv -y
