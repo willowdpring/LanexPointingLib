@@ -17,53 +17,12 @@ import matplotlib.ticker as tick
 from cv2 import getPerspectiveTransform, warpPerspective
 import pointing2d_settings as settings
 
-
-def normalise_transformation(in_shape,warp_transform,dstmax):
-    """
-    TODO: this still needs alot of work
-
-        it may be better to invert the transformation and generate an inverted fit then integrate that?
-        inverted_trans = np.linalg.pinv(trans)
-
-    generates various test arrays and runs them throught the transformation to generate an array of normalisation weights for integral preservation  
-    
-    Parameters
-    ----------
-    in_shape
-        the size/shape of the arrays that will be transformed i.e. (raw camera data as an np.array).shape
-    warp_transform
-        the cv2 transformation generated with getPerspectiveTransform
-    dstmax
-        the padded (ultimate) destination points in theta, phi
-
-    Returns
-    -------
-    transformation_scale
-        the array of pixel weights to integral preserve the transformation
-        
-
-"""
-
-    transformation_scale = np.zeros(in_shape)
-    for p_x, col in enumerate(transformation_scale):
-        for p_y, pixel in enumerate(col):
-            dummy = np.zeros_like(transformation_scale)
-            dummy[p_x,p_y] = 1e8
-            result = np.sum(warpPerspective(dummy,warp_transform,(dstmax[1],dstmax[0])))
-            if result == 0:
-                transformation_scale[p_x,p_y] = 0
-            else:
-                print("{} for x:{}, y:{}".format(result/1e8,p_x,p_y))
-                transformation_scale[p_x,p_y] = result/1e8
-    return(transformation_scale)
-
-
 def TransformToThetaPhi(pixelData, src, dst):
     """
     generates a perspective transformation from known points and applys it to the image
 
     WARN: this projects the points to a flat plane not a sphere and is unsuitable for large angles
-    TODO: this is also not integral preserving ):
+          this is also not integral preserving ):
 
 
     Parameters
@@ -101,19 +60,15 @@ def TransformToThetaPhi(pixelData, src, dst):
 
     if settings.transformation is not None:
         if settings.verbose: print("Loading existing transformation and normalisation matricies ... ", end = '')
-        warp_transform = settings.transformation[0]
-        transformation_scale = settings.transformation[1]
+        warp_transform = settings.transformation
         if settings.verbose: print("Done")
     else: 
         if settings.verbose: print("calculating transformation ... ", end = '')
         warp_transform = getPerspectiveTransform(src, dst)
         if settings.verbose: print("Done")
 
-        if settings.verbose: print("calculating normalisations ... ", end = '')
-        transfromation_scale = normalise_transformation(pixelData.shape,warp_transform,dstmax)
-        if settings.verbose: print("Done")
         if settings.verbose: print("Recording to temp ... ", end = '')
-        settings.transformation = [warp_transform, transformation_scale]
+        settings.transformation = warp_transform
         if settings.verbose: print("Done")
 
     if settings.verbose: print("Transforming Image")
@@ -121,6 +76,66 @@ def TransformToThetaPhi(pixelData, src, dst):
     if settings.verbose: print("Done")
 
     return (out_im, axis)
+
+def TransformFromThetaPhi(bunchData,src,dst):
+    """
+    generates a perspective transformation from known points and deapplys it to the fitted data to reconstruct an image
+
+    WARN: this projects the points to a flat plane not a sphere and is unsuitable for large angles
+    TODO: this is here to invert the original transformation so that we can integrate and photon count, T'T needs to be integral preserving 
+
+
+    Parameters
+    ----------
+    bunchData: 2d array
+        the flattened data in theta phi
+    src : np.array[,float32]
+        source points in pixel coordinates
+    dst : np.array[,float32]
+        destination points in theta, phi
+
+    Returns
+    -------
+    out_im : 2d array
+        the warped image data in the original camera perspective
+    """
+
+    assert len(src) == 4
+    assert len(dst) == 4
+
+    ## padding around the output points:
+
+    lpad = 1.01
+    tpad = 1.01
+    rpad = 1.2
+    bpad = 0.92
+
+    dstmin = [tpad * min(dst[:, 0]), lpad * min(dst[:, 1])]
+    dst = np.float32([[d[0] - dstmin[0], d[1] - dstmin[1]] for d in dst])
+
+    dstmax = np.array([max(dst[:, 0]) * bpad, max(dst[:, 1]) * rpad], int)
+    axis = np.float32([0 - dstmin[0], 0 - dstmin[1]])
+
+    if settings.transformation is not None:
+        if settings.verbose: print("Loading existing transformation ... ", end = '')
+        warp_transform = settings.transformation
+        if settings.verbose: print("Done")
+    else: 
+        if settings.verbose: print("calculating transformation ... ", end = '')
+        warp_transform = getPerspectiveTransform(src, dst)
+        if settings.verbose: print("Done")
+
+        if settings.verbose: print("Recording to temp ... ", end = '')
+        settings.transformation = warp_transform
+        if settings.verbose: print("Done")
+
+    inv_warp_transform = np.linalg.inv(warp_transform)
+
+    if settings.verbose: print("Transforming Image")
+    out_im = warpPerspective(bunchData, inv_warp_transform, (dstmax[1], dstmax[0]))
+    if settings.verbose: print("Done")
+
+    return (out_im)
 
 
 def cart2sph(x, y, z):

@@ -26,6 +26,15 @@ rc('font', **font)
 
 
 def get_background():
+    """
+    Returns the data array from the specified background image file 
+
+    Returns
+    -------
+    backgroundData : np.array() or 0
+        thedata array for the background that will be subtracted from the images
+
+    """
     if settings.background is not None:
         backgroundData = np.array(PIL.Image.open(settings.background))
         for f in settings.filters:
@@ -41,6 +50,22 @@ def get_background():
 
 
 def check_calibration_transformation(exportDir, src, dst):
+    """
+    A small function for sanity checking the generated transformation on the iluminated image of the lanex
+     
+    Parameters
+    ----------
+    exportDir : str
+        the directory in which the output should be saved if saving
+    src : np.array[,float32]
+        source points in pixel coordinates
+    dst : np.array[,float32]
+        destination points in theta, phi
+
+    Returns
+    -------
+    None
+    """
     pixelData = np.array(
         np.array(PIL.Image.open(settings.pointingCalibrationImage)))
     saveDir = None
@@ -49,6 +74,55 @@ def check_calibration_transformation(exportDir, src, dst):
     perspective.check_transformation(pixelData, src, dst, settings.units,
                                      settings.resolution,
                                      settings.zoom_radius, saveDir)
+
+
+def integrate_inverse(x2, y2, result, src, dst):
+    """
+    A function that generates data from the plots the fitted gausians and transforms them back into the camera frame to integrate
+    TODO: WIP needs testing
+     
+    Parameters
+    ----------
+    x2 : np.array
+        a 2d array of x coordinates as returned from numpy.from meshgrid
+    y2 : np.array
+        a 2d array of y coordinates as returned from numpy.from meshgrid
+    result : ModelResult
+        fit returned from LMFIT
+        see https://lmfit.github.io/lmfit-py/model.html#lmfit.model.ModelResult
+    src : np.array[,float32]
+        source points in pixel coordinates
+    dst : np.array[,float32]
+        destination points in theta, phi
+
+    Returns
+    -------
+    Integral: array[float]
+        the integrals of the two isolated gaussians
+    """
+    
+    gaussians = [] # [ [amplitude, offset, xo, yo, theta, sigma_x, sigma_y] ] 
+    integrals = [] # [ float ]
+
+    if result.model.name == "lm_gaus2d":
+        # decompose the two gaussians
+        gaussians.append( [result.best_values["amplitude_1"],0,result.best_values["xo_1"],result.best_values["yo_1"],result.best_values["sigma_x_1"],result.best_values["sigma_y_1"],result.best_values["theta_1"]] )
+        gaussians.append( [result.best_values["amplitude_2"],0,result.best_values["xo_2"],result.best_values["yo_2"],result.best_values["sigma_x_2"],result.best_values["sigma_y_2"],result.best_values["theta_2"]] )
+
+    elif result.model.name == "lm_double_gaus2d":
+        # zero the offset
+        gauss = [result.best_values["amplitude"],0,result.best_values["xo"],result.best_values["yo"],result.best_values["sigma_x"],result.best_values["sigma_y"],result.best_values["theta"]]
+
+    else:
+        print("Sorry Integration of Gausian Bunches not Implimented for the Model : {}".format(result.model.name))
+        integrals.append(0)
+    
+    if len(gaussians) != 0:
+        for gaus in gaussians:
+            bunch_ary = fit.lm_gaus2d(x2,y2,**gaus)
+            cam_ary = perspective.TransformFromThetaPhi(bunch_ary,src,dst)    
+            integrals.append(np.sum(cam_ary))
+    return(integrals)
 
 
 def generate_stats(exportDir, src, dst, backgroundData=None):
@@ -137,6 +211,8 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
             result = fit.fit_double_gauss2d_lm(x2, y2, roi, fmodel)
 
             fitted = fmodel.func(x2, y2, **result.best_values)
+
+            bunch_charge = integrate_inverse(x2, y2, result, src, dst)
 
             stats.append(
                 [result.rsquared, result.best_values, result.covar])
@@ -283,3 +359,6 @@ def generate_report(stats, exportDir):
             fig[0].close()
         else:
             fig[0].show()
+
+if __name__ == "__main__":
+    print("this is not the main file")
