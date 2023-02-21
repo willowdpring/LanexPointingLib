@@ -14,7 +14,7 @@ from pointing2d_backfiltlib import norm_gaus2d_ary
 """
 verbose = True
 
-targetDir = "C:/Users/willo/Documents/BunkerC/Dec 05/Pointing Lanex/Run004"  #[str] the target root directory saves will go in ./EXPORTED
+targetDir = ""  #[str] the target root directory saves will go in ./EXPORTED
 
 start = 1  # [int] the first file to analyse
 
@@ -28,11 +28,11 @@ overwrite = False  # [bool] if True we will overwrite existing save data (in the
 """ Backgrounds are generated from user selected files in a seperate directory 
     by compressing all the tiff files in that directory along z using a max() and a mean() method  
 """
-background_dir = "D:/Bunker C/Lanex/Dec 05/Pointing Lanex/run004/BACKGROUND/"  # [str] the directory to generate
+background_dir = ""  # [str] the directory to generate
 
 generate_background_files = True  # [bool] if True we will generate /EXPORTED/MAX_BAK.tiff and /EXPORTED/AVG_BAK.tiff in the background folder
 
-background = "C:/Users/willo/Documents/BunkerC/Dec 05/Pointing Lanex/Run004/BACKGROUND/EXPORTED/MAX_BAK.tiff"  # [str] the file to use as a background
+background = ""  # [str] the file to use as a background
 
 background_clip = 60  # [int] the percentile below which the background data is ignored
 
@@ -64,7 +64,7 @@ resolution = 10  # pixels/unit
 
 zoom_radius = 30  # the radius of the analysis box
 
-pointingCalibrationImage = "C:/Users/willo/Documents/BunkerC/LanexBeamProfile/HighE_LanexIN.tiff"
+pointingCalibrationImage = ""
 
 dh = 10  # a nudge to vertical offset of the lanex
 
@@ -86,20 +86,45 @@ checkTransformation = True  # [bool] if True a plot will be generated to check t
 
 
 def assert_reasonable():
-    assert os.path.exists(targetDir)
-
+    ers = False
+    msg = "Settings are NOT reasonable: \n  detected errors:\n"
+    try:
+        assert os.path.exists(targetDir), 'No Target Directory'
+    except AssertionError as e:
+        msg += "\t{}\n".format(e)
+        ers = True
     if background is not None:
-        assert os.path.exists(background)
-        assert background_clip < 100
-        assert background_clip >= 0
+        try:
+            assert os.path.exists(background), 'Background file doesn\'t exist'
+        except AssertionError as e:
+            msg += "\t{}\n".format(e)
+            ers = True
+        try:
+            assert background_clip < 100 and  background_clip >= 0, 'background_clip should be in range 0-100'
+        except AssertionError as e:
+            msg += "\t{}\n".format(e)
+            ers = True
 
     if generate_background_files:
-        assert os.path.exists(background_dir)
-
-    assert os.path.exists(targetDir)
+        try:
+            assert os.path.exists(background_dir), 'No Target Background Directory for Generating new Averages'
+        except AssertionError as e:
+            msg += "\t{}\n".format(e)
+            ers = True
 
     if checkTransformation:
-        assert os.path.exists(pointingCalibrationImage)
+        try:
+            assert os.path.exists(pointingCalibrationImage), 'No Calibration Image to Check'
+        except AssertionError as e:
+            msg += "\t{}\n".format(e)
+            ers = True
+
+    if ers == 0:
+        return(True)
+    else:
+        msg += "please edit pointing2d_settings.py and try again"
+        print(msg)
+        return(False)
 
 
 if __name__ == "__main__":

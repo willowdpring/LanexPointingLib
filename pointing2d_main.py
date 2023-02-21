@@ -51,7 +51,7 @@ def test_trans():
                                                 settings.units,
                                                 settings.resolution)
     pixelData = np.array(PIL.Image.open(settings.pointingCalibrationImage))
-        
+
     untransformed_data = np.ones_like(pixelData)
 
     transformed, axis = perspective.TransformToThetaPhi(untransformed_data,
@@ -66,13 +66,14 @@ def test_trans():
 
 
 if __name__ == "__main__":
-    # main()
-    test_trans()
+    if settings.assert_reasonable():
+        # main()
+        test_trans()
 
-    # src, dst = perspective.src_dst_from_PIX_XYZ(settings.known_points,
-    #                                            settings.units,
-    #                                            settings.resolution)
+        # src, dst = perspective.src_dst_from_PIX_XYZ(settings.known_points,
+        #                                            settings.units,
+        #                                            settings.resolution)
 
-    # per = getPerspectiveTransform(np.array(src, np.float32),np.array(dst, np.float32))
+        # per = getPerspectiveTransform(np.array(src, np.float32),np.array(dst, np.float32))
 
-    # print(per)
+        # print(per)

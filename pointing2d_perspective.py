@@ -70,9 +70,9 @@ def TransformToThetaPhi(pixelData, src, dst):
     ----------
     pixelData : 2d array
         the image data
-    src : 
+    src : np.array[,float32]
         source points in pixel coordinates
-    dst : 
+    dst : np.array[,float32]
         destination points in theta, phi
 
     Returns
@@ -169,9 +169,9 @@ def src_dst_from_PIX_XYZ(known_points, units, resolution):
 
     Returns
     -------
-    src : list([int,int])
+    src : np.array[,float32]
         list of source points in pixel x,y
-    dst : list([float,float])
+    dst : np.array[,float32]
         list of destination points in theta phi [rad/units]
 
     """
