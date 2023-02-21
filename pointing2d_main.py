@@ -2,7 +2,7 @@
 """
 Created on Thu Dec 15 15:21:22 2022
 
-@author: willo#
+@author: willo
 
 the __main__ file that should be run 
 
@@ -67,12 +67,12 @@ def test_trans():
 
 if __name__ == "__main__":
     # main()
-    # test_trans()
+    test_trans()
 
-    src, dst = perspective.src_dst_from_PIX_XYZ(settings.known_points,
-                                                settings.units,
-                                                settings.resolution)
+    # src, dst = perspective.src_dst_from_PIX_XYZ(settings.known_points,
+    #                                            settings.units,
+    #                                            settings.resolution)
 
-    per = getPerspectiveTransform(np.array(src, np.float32),np.array(dst, np.float32))
+    # per = getPerspectiveTransform(np.array(src, np.float32),np.array(dst, np.float32))
 
-    print(per)
+    # print(per)
