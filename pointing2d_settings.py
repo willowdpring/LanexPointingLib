@@ -14,7 +14,7 @@ from pointing2d_backfiltlib import norm_gaus2d_ary
 """
 verbose = True
 
-targetDir = ""  #[str] the target root directory saves will go in ./EXPORTED
+targetDir = "C:\\Users\\BunkerC-User\\OneDrive - University of Strathclyde\\Pictures\\LanexBeamProfile\\221205\\Run004"  #[str] the target root directory saves will go in ./EXPORTED
 
 start = 1  # [int] the first file to analyse
 
@@ -28,11 +28,11 @@ overwrite = False  # [bool] if True we will overwrite existing save data (in the
 """ Backgrounds are generated from user selected files in a seperate directory 
     by compressing all the tiff files in that directory along z using a max() and a mean() method  
 """
-background_dir = ""  # [str] the directory to generate
+background_dir = "C:\\Users\\BunkerC-User\\OneDrive - University of Strathclyde\\Pictures\\LanexBeamProfile\\221205\\Run004\\BACKGROUND"  # [str] the directory to generate
 
 generate_background_files = True  # [bool] if True we will generate /EXPORTED/MAX_BAK.tiff and /EXPORTED/AVG_BAK.tiff in the background folder
 
-background = ""  # [str] the file to use as a background
+background = "{}\\EXPORTED\\MAX_BAK.tiff".format(background_dir)  # [str] the file to use as a background
 
 background_clip = 60  # [int] the percentile below which the background data is ignored
 
@@ -64,7 +64,7 @@ resolution = 10  # pixels/unit
 
 zoom_radius = 30  # the radius of the analysis box
 
-pointingCalibrationImage = ""
+pointingCalibrationImage = "C:\\Users\\BunkerC-User\\OneDrive - University of Strathclyde\\Pictures\\LanexBeamProfile\\221202\\HighE_LanexOut.tiff"
 
 dh = 10  # a nudge to vertical offset of the lanex
 

@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 from numba import cfunc, carray
 from numba.types import CPointer, intc, intp, float64, voidptr
 from scipy import LowLevelCallable, ndimage
+import pointing2d_settings as settings
 
 # There are a series of functions for generating gaussian kernels:
 
@@ -191,12 +192,12 @@ def walkDir(targetDir,
     targetDir : str
         the path to the root directory for the search
 
-    select_strings : list(str) optional 
+    select_strings : np.array(str) optional 
         necessary substrings for a file to be included 
         default : ['.tiff','.tif']
 
 
-    ignore_strings : list(str) optional 
+    ignore_strings : np.array(str) optional 
         unwanted substrings that imply the file should be ignored eg the name of a subdirectory
         default : ['BACKGROUND']
 
@@ -206,13 +207,18 @@ def walkDir(targetDir,
         a list of absolute paths to files that match the parameters
 
     """
-    assert os.path.isdir(targetDir)
+    assert os.path.isdir(targetDir), "Target Directory is not valid \n {}".format(targetDir)
     out_files = []
     for root, dirs, files in os.walk(targetDir):
-        for file in files:
-            if select_strings.any(
-            ) in file and not ignore_strings.any() in os.path.join(root, file):
-                out_files.append(os.path.join(root, file))
+        if ignore_strings == None:
+            for file in files:    
+                if any([f in file for f in select_strings]):
+                    out_files.append(os.path.join(root, file))
+        else:
+            for file in files:    
+                if any([f in file for f in select_strings]) and not any([f in os.path.join(root, file) for f in ignore_strings]):
+                    out_files.append(os.path.join(root, file))
+        
     return (out_files)
 
 
@@ -279,7 +285,7 @@ def generateAndPlotBackgrounds(
     av_hi = 9000
     max_s = 1.985
 
-    tifFiles = walkDir(targetDir)
+    tifFiles = walkDir(targetDir,ignore_strings=None)
 
     N = len(tifFiles)
     assert N > 0
@@ -315,10 +321,10 @@ def generateAndPlotBackgrounds(
 
         exportPathAv = "{}\\AVG_BAK.tiff".format(exportDir)
         exportPathMax = "{}\\MAX_BAK.tiff".format(exportDir)
-        PIL.Image.fromarray(backs[1]).save(exportPathAv, format='tiff')
-        PIL.Image.fromarray(backs[2]).save(exportPathMax, format='tiff')
+        PIL.Image.fromarray(backs[0]).save(exportPathAv, format='tiff')
+        PIL.Image.fromarray(backs[1]).save(exportPathMax, format='tiff')
 
 
 if __name__ == "__main__":
-    background_dir = "D:/Bunker C/Lanex/Dec 05/Pointing Lanex/run004/BACKGROUND/"
+    background_dir = settings.background_dir
     generateAndPlotBackgrounds(background_dir)

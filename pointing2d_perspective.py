@@ -14,16 +14,51 @@ import math as m
 import matplotlib.pyplot as plt
 import matplotlib.transforms as trans
 import matplotlib.ticker as tick
-from cv2 import getPerspectiveTransform, warpPerspective
+from cv2 import getPerspectiveTransform, warpPerspective, INTER_AREA
 import pointing2d_settings as settings
 
-def TransformToThetaPhi(pixelData, src, dst):
+def ceil2(num):
+    return(np.pow(ceil(np.log2(num)),2))
+
+
+def getTransform(src,dst):
     """
-    generates a perspective transformation from known points and applys it to the image
+    generates or loads a perspective transformation from known points
 
     WARN: this projects the points to a flat plane not a sphere and is unsuitable for large angles
           this is also not integral preserving ):
 
+    Parameters
+    ----------
+    src : np.array[,float32]
+        source points in pixel coordinates
+    dst : np.array[,float32]
+        destination points in theta, phi
+    
+    Returns
+    ----------
+    warp_transform : np.array
+        transformation matrix
+    
+    """
+        
+    if settings.transformation is not None:
+        if settings.verbose: print("Loading existing transformation and normalisation matricies ... ", end = '')
+        warp_transform = settings.transformation
+        if settings.verbose: print("Done")
+    else: 
+        if settings.verbose: print("calculating transformation ... ", end = '')
+        warp_transform = getPerspectiveTransform(src, dst)
+        if settings.verbose: print("Done")
+
+        if settings.verbose: print("Recording to temp ... ", end = '')
+        settings.transformation = warp_transform
+        if settings.verbose: print("Done")
+    return warp_transform 
+
+def TransformToThetaPhi(pixelData, src, dst):
+    """
+    generates a perspective transformation from known points and applys it to the image
 
     Parameters
     ----------
@@ -58,24 +93,41 @@ def TransformToThetaPhi(pixelData, src, dst):
     dstmax = np.array([max(dst[:, 0]) * bpad, max(dst[:, 1]) * rpad], int)
     axis = np.float32([0 - dstmin[0], 0 - dstmin[1]])
 
-    if settings.transformation is not None:
-        if settings.verbose: print("Loading existing transformation and normalisation matricies ... ", end = '')
-        warp_transform = settings.transformation
-        if settings.verbose: print("Done")
-    else: 
-        if settings.verbose: print("calculating transformation ... ", end = '')
-        warp_transform = getPerspectiveTransform(src, dst)
-        if settings.verbose: print("Done")
-
-        if settings.verbose: print("Recording to temp ... ", end = '')
-        settings.transformation = warp_transform
-        if settings.verbose: print("Done")
+    warp_transform = getTransform(src,dst)
 
     if settings.verbose: print("Transforming Image")
-    out_im = warpPerspective(pixelData, warp_transform, (dstmax[1], dstmax[0]))
+    out_im = warpPerspective(pixelData, warp_transform, (dstmax[1], dstmax[0]),  flags=INTER_AREA)
     if settings.verbose: print("Done")
 
     return (out_im, axis)
+
+def GenerateWeightMatrix(pixData,src,dst):
+    """
+    Generates a matrix that contains a weight value for each pixel of the input image to preserve integrals after the perspective warp
+
+    TODO: NOT IMPLIMENTED
+
+    Parameters
+    ----------
+    pixelData: 2d array
+        raw image data
+    src : np.array[,float32]
+        source points in pixel coordinates
+    dst : np.array[,float32]
+        destination points in theta, phi
+
+    Returns
+    -------
+    weights : 2d array
+        the grid of pixel weights
+    """
+    weights = np.ones_like(pixData)
+    warp_transfrom = getTransform(src, dst)
+
+
+
+    
+    return weights
 
 def TransformFromThetaPhi(bunchData,src,dst):
     """
@@ -83,7 +135,7 @@ def TransformFromThetaPhi(bunchData,src,dst):
 
     WARN: this projects the points to a flat plane not a sphere and is unsuitable for large angles
     TODO: this is here to invert the original transformation so that we can integrate and photon count, T'T needs to be integral preserving 
-
+            ROI IS NOT IMPLIMENTED
 
     Parameters
     ----------
@@ -130,6 +182,8 @@ def TransformFromThetaPhi(bunchData,src,dst):
         if settings.verbose: print("Done")
 
     inv_warp_transform = np.linalg.inv(warp_transform)
+
+    srcmax = np.array( [ceil2(max(src[:, 0])), ceil2(max(src[:, 1]))],int)
 
     if settings.verbose: print("Transforming Image")
     out_im = warpPerspective(bunchData, inv_warp_transform, (dstmax[1], dstmax[0]))
