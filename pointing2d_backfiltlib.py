@@ -21,7 +21,6 @@ import pointing2d_settings as settings
 
 # There are a series of functions for generating gaussian kernels:
 
-
 def norm_gaus_ary(s, n=3):
     # generates a normalised gaussian array length with sigma s
     # shift the center to the middle of the range and back for a modulo

@@ -64,11 +64,10 @@ resolution = 10  # pixels/unit
 
 zoom_radius = 30  # the radius of the analysis box
 
-pointingCalibrationImage = "C:\\Users\\BunkerC-User\\Documents\\LanexPointingTEST\\230220\\HighE_LanexOut.tiff"
+pointingCalibrationImage = "C:\\Users\\BunkerC-User\\Documents\\LanexPointingTEST\\230220\\Lanex_out.tiff"
 
-dh = 10  # a nudge to vertical offset of the lanex
-
-dx = 12  # a nudge to horizontal offset of the lanex
+dh = 10  # a nudge to vertical offset of the lanex in mm
+dx = 12  # a nudge to horizontal offset of the lanex in mm
 
 known_points = [
     #[ [X,Y] , [X,Y,Z], 'note']

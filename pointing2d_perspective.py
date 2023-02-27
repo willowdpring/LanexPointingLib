@@ -14,10 +14,24 @@ import math as m
 import matplotlib.pyplot as plt
 import matplotlib.transforms as trans
 import matplotlib.ticker as tick
-from cv2 import getPerspectiveTransform, warpPerspective, INTER_AREA
+from cv2 import getPerspectiveTransform, perspectiveTransform, warpPerspective
 import pointing2d_settings as settings
+from scipy.interpolate import bisplrep, bisplev
 
 def ceil2(num):
+    """
+    a simple function for rounding up to a power of 2
+
+    Parameters:
+    ---------
+    num : float
+        the number to round
+    
+    Returns :
+    ---------
+    num : float
+        the next power of 2    
+    """
     return(np.pow(ceil(np.log2(num)),2))
 
 
@@ -48,13 +62,14 @@ def getTransform(src,dst):
         if settings.verbose: print("Done")
     else: 
         if settings.verbose: print("calculating transformation ... ", end = '')
-        warp_transform = getPerspectiveTransform(src, dst)
+        warp_transform = getPerspectiveTransform(np.array(src,np.float32), np.array(dst,np.float32))
         if settings.verbose: print("Done")
 
         if settings.verbose: print("Recording to temp ... ", end = '')
         settings.transformation = warp_transform
         if settings.verbose: print("Done")
     return warp_transform 
+
 
 def TransformToThetaPhi(pixelData, src, dst):
     """
@@ -96,12 +111,13 @@ def TransformToThetaPhi(pixelData, src, dst):
     warp_transform = getTransform(src,dst)
 
     if settings.verbose: print("Transforming Image")
-    out_im = warpPerspective(pixelData, warp_transform, (dstmax[1], dstmax[0]),  flags=INTER_AREA)
+    out_im = warpPerspective(pixelData, warp_transform, (dstmax[1], dstmax[0]))
     if settings.verbose: print("Done")
 
     return (out_im, axis)
 
-def GenerateWeightMatrix(pixData,src,dst):
+
+def GenerateWeightMatrix(pixelData, src, dst):
     """
     Generates a matrix that contains a weight value for each pixel of the input image to preserve integrals after the perspective warp
 
@@ -121,13 +137,56 @@ def GenerateWeightMatrix(pixData,src,dst):
     weights : 2d array
         the grid of pixel weights
     """
-    weights = np.ones_like(pixData)
-    warp_transfrom = getTransform(src, dst)
+    num_x_samples = 10
+    num_y_samples = 8
 
+    x_len = pixelData.shape[0]
+    y_len = pixelData.shape[1]
 
+    x_start = x_len/(2*num_x_samples)
+    x_stop = x_len - x_start
 
+    y_start = y_len/(2*num_y_samples)
+    y_stop = y_len - y_start
+
+    sample_x = np.linspace(x_start,x_stop,num_x_samples)     
+    sample_y = np.linspace(y_start,y_stop,num_y_samples) 
     
+    delta = min([x_start,y_start])
+
+    warp_transfrom = getTransform(src, dst)
+    
+    samples = []
+
+    for y in sample_y:
+        for x in sample_x:
+            corner1 = np.float32(np.array([[[x-delta,y-delta]]]))
+            corner2 = np.float32(np.array([[[x+delta,y+delta]]]))
+            c1_maped = perspectiveTransform(corner1,warp_transfrom)
+            c2_maped = perspectiveTransform(corner2,warp_transfrom)
+            z = (4*delta*delta)/(abs(c2_maped[0,0,0]-c1_maped[0,0,0])*abs(c2_maped[0,0,1]-c1_maped[0,0,1]))
+
+            samples.append(z)
+
+    px,py = np.meshgrid(sample_x,sample_y)
+
+    full_x = np.linspace(0,pixelData.shape[0]-1,pixelData.shape[0],endpoint=True,dtype=int)
+    full_y = np.linspace(0,pixelData.shape[1]-1,pixelData.shape[1],endpoint=True,dtype=int)    
+    
+    surf_interpolator = bisplrep(px, py, samples)
+    weights = bisplev(full_x, full_y, surf_interpolator)
+
+    fymesh,fxmesh = np.meshgrid(full_y,full_x)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+    ax.scatter(px,py,samples)
+    ax.plot_surface(fxmesh,fymesh,weights)
+    fig.show()
+    input("done?")
+
     return weights
+
 
 def TransformFromThetaPhi(bunchData,src,dst):
     """
@@ -191,7 +250,6 @@ def TransformFromThetaPhi(bunchData,src,dst):
 
     return (out_im)
 
-
 def cart2sph(x, y, z):
     """
     generate r,theta,phi from x,y,z
@@ -221,7 +279,6 @@ def cart2sph(x, y, z):
     elev = m.atan2(z, m.sqrt(XsqPlusYsq))  # theta
     az = m.atan2(y, x)  # phi
     return r, elev, az
-
 
 def src_dst_from_PIX_XYZ(known_points, units, resolution):
     """
@@ -288,8 +345,6 @@ def check_integration(pixelData,
     """
     x_array = np.ones(pixelData.shape[0])
     y_array = np.ones(pixelData.shape[1])
-
-
 
 
 def check_transformation(pixelData,
@@ -443,8 +498,16 @@ def check_transformation(pixelData,
 if __name__ == "__main__":
     src, dst = src_dst_from_PIX_XYZ(settings.known_points, settings.units,
                                     settings.resolution)
-    pixelData = np.array(
-        np.array(PIL.Image.open(settings.pointingCalibrationImage)))
+    
+    pixelData = np.array(PIL.Image.open(settings.pointingCalibrationImage))
+
+
+    GenerateWeightMatrix(pixelData, src, dst)
+
+
+
+"""
+    
     check_transformation(pixelData,
                          src,
                          dst,
@@ -452,3 +515,4 @@ if __name__ == "__main__":
                          settings.resolution,
                          settings.zoom_radius,
                          saveDir=None)
+"""
