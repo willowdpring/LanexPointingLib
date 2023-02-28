@@ -117,7 +117,7 @@ def TransformToThetaPhi(pixelData, src, dst):
     return (out_im, axis)
 
 
-def GenerateWeightMatrix(pixelData, src, dst):
+def GenerateWeightMatrix(pixelData, src, dst, plotting = False):
     """
     Generates a matrix that contains a weight value for each pixel of the input image to preserve integrals after the perspective warp
 
@@ -178,13 +178,14 @@ def GenerateWeightMatrix(pixelData, src, dst):
 
     fymesh,fxmesh = np.meshgrid(full_y,full_x)
 
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-    ax.scatter(px,py,samples)
-    ax.plot_surface(fxmesh,fymesh,weights)
-    fig.show()
-    input("done?")
-
+    if plotting:
+        fig = plt.figure()
+        ax = fig.add_subplot(projection='3d')
+        ax.scatter(px,py,samples)
+        ax.plot_surface(fxmesh,fymesh,weights)
+        fig.show()
+        input("Done?")
+        
     return weights
 
 
