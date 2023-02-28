@@ -83,6 +83,8 @@ in_theta_phi = False  # [bool] if True the known points are given in spherical c
 
 checkTransformation = True  # [bool] if True a plot will be generated to check the generated transformation
 
+blockingPlot = False   # [bool] this is here to stop plots from closing immediatly if you are not saving them
+
 
 def assert_reasonable():
     ers = False

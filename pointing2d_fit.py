@@ -11,7 +11,7 @@ A library for fiting 2 dimensional gausians to 2d arrays
 import numpy as np
 import lmfit as lm
 import matplotlib.pyplot as plt
-
+import pointing2d_settings as settings
 
 def lm_gaus2d(x, y, amplitude, offset, xo, yo, theta, sigma_x, sigma_y):
     """
@@ -433,12 +433,17 @@ def plot_test_gausians():
     for sx in [12, 20]:
         for sy in [8, 13]:
             for th in [0, -90, 45]:
-                zary = [[lm_gaus2d(x_v, y_v, amplitude=1, offset=0, xo=50, yo=50, theta=th, sigma_x=sx, sigma_y=sy) for x_v in xary] for y_v in yary]
+                zary = np.array([[lm_gaus2d(x_v, y_v, amplitude=1, offset=0, xo=50, yo=50, theta=th, sigma_x=sx, sigma_y=sy) for x_v in xary] for y_v in yary])
                 fig, ax = plt.subplots(1, 1)
                 ax.imshow(zary)
                 ax.set_title("s_x={}, s_y={}, theta={}".format(sx,sy,th))
                 fig.show()
 
+    settings.blockingPlot = True
+
 if __name__ == "__main__":
     plot_test_gausians()
-    input("done?")
+
+
+    if settings.blockingPlot:
+        input("press RETURN key to continue ...")  # this is here to stop plots from closing immediatly if you are not saving them

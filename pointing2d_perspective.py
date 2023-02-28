@@ -16,6 +16,7 @@ import matplotlib.transforms as trans
 import matplotlib.ticker as tick
 from cv2 import getPerspectiveTransform, perspectiveTransform, warpPerspective
 import pointing2d_settings as settings
+import pointing2d_fit as fit
 from scipy.interpolate import bisplrep, bisplev
 
 def ceil2(num):
@@ -35,9 +36,10 @@ def ceil2(num):
     return(np.pow(ceil(np.log2(num)),2))
 
 
-def getTransform(src,dst):
+def getTransform(pixelDataShape,src,dst):
     """
     generates or loads a perspective transformation from known points
+    and a weights array to prescale the original image
 
     WARN: this projects the points to a flat plane not a sphere and is unsuitable for large angles
           this is also not integral preserving ):
@@ -58,20 +60,25 @@ def getTransform(src,dst):
         
     if settings.transformation is not None:
         if settings.verbose: print("Loading existing transformation and normalisation matricies ... ", end = '')
-        warp_transform = settings.transformation
+        warp_transform = settings.transformation[0]
+        weights = settings.transformation[1]
         if settings.verbose: print("Done")
     else: 
         if settings.verbose: print("calculating transformation ... ", end = '')
         warp_transform = getPerspectiveTransform(np.array(src,np.float32), np.array(dst,np.float32))
         if settings.verbose: print("Done")
 
-        if settings.verbose: print("Recording to temp ... ", end = '')
-        settings.transformation = warp_transform
+        if settings.verbose: print("calculating weights ... ", end = '')
+        weights = GenerateWeightArray(pixelDataShape, warp_transform)
         if settings.verbose: print("Done")
-    return warp_transform 
+
+        if settings.verbose: print("Recording to temp ... ", end = '')
+        settings.transformation = [warp_transform, weights]
+        if settings.verbose: print("Done")
+    return warp_transform, weights 
 
 
-def TransformToThetaPhi(pixelData, src, dst):
+def TransformToThetaPhi(pixelData, src, dst, weighted = True):
     """
     generates a perspective transformation from known points and applys it to the image
 
@@ -108,7 +115,9 @@ def TransformToThetaPhi(pixelData, src, dst):
     dstmax = np.array([max(dst[:, 0]) * bpad, max(dst[:, 1]) * rpad], int)
     axis = np.float32([0 - dstmin[0], 0 - dstmin[1]])
 
-    warp_transform = getTransform(src,dst)
+    warp_transform, weights = getTransform(pixelData.shape,src,dst)
+
+    pixelData = np.multiply(pixelData,weights)
 
     if settings.verbose: print("Transforming Image")
     out_im = warpPerspective(pixelData, warp_transform, (dstmax[1], dstmax[0]))
@@ -117,11 +126,11 @@ def TransformToThetaPhi(pixelData, src, dst):
     return (out_im, axis)
 
 
-def GenerateWeightMatrix(pixelData, src, dst, plotting = False):
+def GenerateWeightArray(pixelDataShape, warp_transform, plotting = True):
     """
-    Generates a matrix that contains a weight value for each pixel of the input image to preserve integrals after the perspective warp
+    Generates an that contains a weight value for each pixel of the input image to preserve integrals after the perspective warp
 
-    TODO: NOT IMPLIMENTED
+    TODO: NOT TESTED
 
     Parameters
     ----------
@@ -137,11 +146,11 @@ def GenerateWeightMatrix(pixelData, src, dst, plotting = False):
     weights : 2d array
         the grid of pixel weights
     """
-    num_x_samples = 10
-    num_y_samples = 8
+    num_x_samples = 200
+    num_y_samples = 160
 
-    x_len = pixelData.shape[0]
-    y_len = pixelData.shape[1]
+    x_len = pixelDataShape[0]
+    y_len = pixelDataShape[1]
 
     x_start = x_len/(2*num_x_samples)
     x_stop = x_len - x_start
@@ -153,8 +162,6 @@ def GenerateWeightMatrix(pixelData, src, dst, plotting = False):
     sample_y = np.linspace(y_start,y_stop,num_y_samples) 
     
     delta = min([x_start,y_start])
-
-    warp_transfrom = getTransform(src, dst)
     
     samples = []
 
@@ -162,32 +169,36 @@ def GenerateWeightMatrix(pixelData, src, dst, plotting = False):
         for x in sample_x:
             corner1 = np.float32(np.array([[[x-delta,y-delta]]]))
             corner2 = np.float32(np.array([[[x+delta,y+delta]]]))
-            c1_maped = perspectiveTransform(corner1,warp_transfrom)
-            c2_maped = perspectiveTransform(corner2,warp_transfrom)
+            c1_maped = perspectiveTransform(corner1,warp_transform)
+            c2_maped = perspectiveTransform(corner2,warp_transform)
             z = (4*delta*delta)/(abs(c2_maped[0,0,0]-c1_maped[0,0,0])*abs(c2_maped[0,0,1]-c1_maped[0,0,1]))
 
             samples.append(z)
 
-    px,py = np.meshgrid(sample_x,sample_y)
+    px, py = np.meshgrid(sample_x, sample_y)
 
-    full_x = np.linspace(0,pixelData.shape[0]-1,pixelData.shape[0],endpoint=True,dtype=int)
-    full_y = np.linspace(0,pixelData.shape[1]-1,pixelData.shape[1],endpoint=True,dtype=int)    
+    full_x = np.linspace(0,x_len-1,x_len,endpoint=True,dtype=int)    
+    full_y = np.linspace(0,y_len-1,y_len,endpoint=True,dtype=int)
     
     surf_interpolator = bisplrep(px, py, samples)
     weights = bisplev(full_x, full_y, surf_interpolator)
 
-    fymesh,fxmesh = np.meshgrid(full_y,full_x)
+
+    fymesh, fxmesh = np.meshgrid(full_y, full_x)
 
     if plotting:
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
-        ax.scatter(px,py,samples)
-        ax.plot_surface(fxmesh,fymesh,weights)
+        ax.scatter(px,py,samples,'rx',label = "Samples")
+        ax.plot_surface(fxmesh, fymesh, weights, label = "interpolated")
+        ax.set_title("Sampled and interpolated weights for each pixel")
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_zlabel("Integration Weight")
         fig.show()
-        input("Done?")
-        
-    return weights
+        settings.blockingPlot = True
 
+    return weights
 
 def TransformFromThetaPhi(bunchData,src,dst):
     """
@@ -344,8 +355,35 @@ def check_integration(pixelData,
     save_dir: str
         absolute path to saving directory or None if not saving
     """
-    x_array = np.ones(pixelData.shape[0])
-    y_array = np.ones(pixelData.shape[1])
+
+    # Generate test image:
+    xary = np.linspace(0, pixelData.shape[0], pixelData.shape[0], endpoint=True)
+    yary = np.linspace(0, pixelData.shape[1], pixelData.shape[1], endpoint=True)
+    sx = 120
+    sy  = 130
+    th = 35
+    untransformed_data = np.array([[fit.lm_gaus2d(x_v, y_v, amplitude=1, offset=0, xo=0.5*pixelData.shape[0], yo=0.5*pixelData.shape[1], theta=th, sigma_x=sx, sigma_y=sy) for y_v in yary] for x_v in xary])
+ 
+    # transform it:
+    transformed, axis = TransformToThetaPhi(untransformed_data,
+                                                        np.array(src, np.float32),
+                                                        np.array(dst, np.float32))
+
+    # transform and plot:
+    fig, ax = check_transformation(untransformed_data,
+                         src,dst,units,resolution,zoom_radius,saveDir)
+
+    # compare integrals:
+    print("untransformed:\n\t size: {}\n\t sum: {} \n\t ave : {}".format(untransformed_data.shape, np.sum(untransformed_data),np.sum(untransformed_data)/(untransformed_data.shape[0]*untransformed_data.shape[1])))
+    print("transformed:\n\t size: {}\n\t sum: {} \n\t ave : {}".format(transformed.shape, np.sum(transformed),np.sum(transformed)/(transformed.shape[0]*transformed.shape[1])))
+
+    print("ratios:\n\tsize: {}\n\t sum: {}".format(transformed.shape[0]*transformed.shape[1]/(untransformed_data.shape[0]*untransformed_data.shape[1]), np.sum(transformed)/np.sum(untransformed_data)))
+
+    fig.suptitle("Integration Ratio : {}".format(np.sum(transformed)/np.sum(untransformed_data)))
+
+    if not settings.saving:
+        settings.blockingPlot = True
+
 
 
 def check_transformation(pixelData,
@@ -374,13 +412,19 @@ def check_transformation(pixelData,
         number of units to plot out from origin (laser/z axis)
     save_dir: str
         absolute path to saving directory or None if not saving
+    
+    Returns
+    ----------
+    fig : mpl Figure
+    ax : mpl Axis Array
+
     """
     if settings.verbose: print("checking transformation")
     transformed, axis = TransformToThetaPhi(pixelData,
                                             np.array(src, np.float32),
                                             np.array(dst, np.float32))
 
-    fig, ax = plt.subplots(3, 1, figsize=(18, 8))
+    fig, ax = plt.subplots(1, 3, figsize=(18, 8))
 
     x_tick_every = 10
     y_tick_every = 10
@@ -404,7 +448,13 @@ def check_transformation(pixelData,
             ylabels.append(labtext)
             yticks.append(i)
 
-    warp_on = 0
+
+    raw_on = 0
+    ax[raw_on].imshow(pixelData)
+    ax[raw_on].set_title("Raw Data")
+
+
+    warp_on = 1
     ax[warp_on].imshow(transformed)
     ax[warp_on].set_title("Transformed to Theta-Phi")
     ax[warp_on].spines['left'].set_position(('data', axis[0]))
@@ -448,7 +498,7 @@ def check_transformation(pixelData,
             z_ylabels.append(labtext)
             z_yticks.append(i)
 
-    zoom_on = 1
+    zoom_on = 2
 
     zoom_x_lims = [
         int(axis[0] - (zoom_radius * resolution)),
@@ -494,7 +544,9 @@ def check_transformation(pixelData,
         fig.savefig(saveplot)
     else:        
         fig.show()
+        settings.blockingPlot = True
 
+    return(fig,ax)
 
 if __name__ == "__main__":
     src, dst = src_dst_from_PIX_XYZ(settings.known_points, settings.units,
@@ -502,18 +554,13 @@ if __name__ == "__main__":
     
     pixelData = np.array(PIL.Image.open(settings.pointingCalibrationImage))
 
-
-    GenerateWeightMatrix(pixelData, src, dst)
-
-
-
-"""
-    
-    check_transformation(pixelData,
+    check_integration(pixelData,
                          src,
                          dst,
                          settings.units,
                          settings.resolution,
                          settings.zoom_radius,
                          saveDir=None)
-"""
+
+    if settings.blockingPlot:
+            input("press RETURN key to continue ...")  # this is here to stop plots from closing immediatly if you are not saving them

@@ -46,28 +46,6 @@ def main():
     input("close? : ")
 
 
-def test_trans():
-    src, dst = perspective.src_dst_from_PIX_XYZ(settings.known_points,
-                                                settings.units,
-                                                settings.resolution)
-    pixelData = np.array(PIL.Image.open(settings.pointingCalibrationImage))
-
-    untransformed_data = np.ones_like(pixelData)
-
-    transformed, axis = perspective.TransformToThetaPhi(untransformed_data,
-                                                        np.array(src, np.float32),
-                                                        np.array(dst, np.float32))
-    
-    print("untransformed:\n\t size: {}\n\t sum: {} \n\t ave : {}".format(untransformed_data.shape, np.sum(untransformed_data),np.sum(untransformed_data)/(untransformed_data.shape[0]*untransformed_data.shape[1])))
-    print("transformed:\n\t size: {}\n\t sum: {} \n\t ave : {}".format(transformed.shape, np.sum(transformed),np.sum(transformed)/(transformed.shape[0]*transformed.shape[1])))
-
-    print("ratios:\n\tsize: {}\n\t sum: {}".format(transformed.shape[0]*transformed.shape[1]/(untransformed_data.shape[0]*untransformed_data.shape[1]), np.sum(transformed)/np.sum(untransformed_data)))
-
-
-    if not settings.saving:
-        input("press RETURN key to continue ...")  # this is here to stop plots from closing immediatly if you are not saving them
-
-
 if __name__ == "__main__":
     if settings.assert_reasonable():
         # main()
