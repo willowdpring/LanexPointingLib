@@ -15,8 +15,9 @@ REQUIREMENTS:
     opencv
 
 installation : 
-    conda install numpy numba scipy pillow matplotlib -y
-    conda install -c conda-forge lmfit opencv -y
+    - conda install numpy numba scipy pillow matplotlib -y
+    
+    - conda install -c conda-forge lmfit opencv -y
     
 the environment spec-file is also available i.e.:
     conda create --name pointing2d --file spec-file.txt
