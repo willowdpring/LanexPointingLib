@@ -322,7 +322,8 @@ def fit_gauss2d_lm(x2, y2, z, fmodel):
         see https://lmfit.github.io/lmfit-py/model.html#lmfit.model.ModelResult
     """
     Ae, ofe, x0e, y0e, sxe, sye, thetae = getest2DGF(x2, y2, z)
-    print("Found initial estimates: ", Ae, x0e, y0e, sxe, sye, thetae)
+    if settings.verbose:
+        print("Found initial estimates: ", Ae, x0e, y0e, sxe, sye, thetae)
 
     result = fmodel.fit(z,
                         x=x2,
@@ -335,7 +336,8 @@ def fit_gauss2d_lm(x2, y2, z, fmodel):
                         sigma_x=sxe,
                         sigma_y=sye)
 
-    print(result.fit_report())
+    if settings.verbose:
+        print(result.fit_report())
 
     return (result)
 
@@ -359,14 +361,16 @@ def fit_double_gauss2d_lm(x2, y2, z, fmodel):
     """
     A1e, ofe, x01e, y01e, sx1e, sy1e, theta1e, A2e, x02e, y02e = getestdbl2DGF(
         x2, y2, z)
-    print("Found initial estimates: ")
+    if settings.verbose:
+        print("Found initial estimates: ")
     printvars = [A1e, ofe, x01e, y01e, sx1e, sy1e, theta1e, A2e, x02e, y02e]
     printnames = [
         'A1e', 'ofe', 'x01e', 'y01e', 'sx1e', 'sy1e', 'theta1e', 'A2e', 'x02e',
         'y02e'
     ]
-    for i, v in enumerate(printvars):
-        print("{}\t =\t {}".format(printnames[i], v))
+    if settings.verbose:
+        for i, v in enumerate(printvars):
+            print("{}\t =\t {}".format(printnames[i], v))
 
     result = fmodel.fit(z,
                         x=x2,
@@ -382,7 +386,8 @@ def fit_double_gauss2d_lm(x2, y2, z, fmodel):
                         xo_2=x02e,
                         yo_2=y02e)
 
-    print(result.fit_report())
+    if settings.verbose:
+        print(result.fit_report())
 
     return (result)
 

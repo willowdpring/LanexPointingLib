@@ -126,11 +126,9 @@ def TransformToThetaPhi(pixelData, src, dst, weighted = True):
     return (out_im, axis)
 
 
-def GenerateWeightArray(pixelDataShape, warp_transform, plotting = True):
+def GenerateWeightArray(pixelDataShape, warp_transform, plotting = False):
     """
     Generates an that contains a weight value for each pixel of the input image to preserve integrals after the perspective warp
-
-    TODO: NOT TESTED
 
     Parameters
     ----------
@@ -239,18 +237,7 @@ def TransformFromThetaPhi(bunchData,src,dst):
     dstmax = np.array([max(dst[:, 0]) * bpad, max(dst[:, 1]) * rpad], int)
     axis = np.float32([0 - dstmin[0], 0 - dstmin[1]])
 
-    if settings.transformation is not None:
-        if settings.verbose: print("Loading existing transformation ... ", end = '')
-        warp_transform = settings.transformation
-        if settings.verbose: print("Done")
-    else: 
-        if settings.verbose: print("calculating transformation ... ", end = '')
-        warp_transform = getPerspectiveTransform(src, dst)
-        if settings.verbose: print("Done")
-
-        if settings.verbose: print("Recording to temp ... ", end = '')
-        settings.transformation = warp_transform
-        if settings.verbose: print("Done")
+    warp_transform, weights = getTransform(bunchData,src,dst) 
 
     inv_warp_transform = np.linalg.inv(warp_transform)
 
@@ -383,8 +370,6 @@ def check_integration(pixelData,
 
     if not settings.saving:
         settings.blockingPlot = True
-
-
 
 def check_transformation(pixelData,
                          src,

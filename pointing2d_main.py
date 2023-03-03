@@ -48,14 +48,4 @@ def main():
 
 if __name__ == "__main__":
     if settings.assert_reasonable():
-        # main()
-
-        test_trans()
-
-        # src, dst = perspective.src_dst_from_PIX_XYZ(settings.known_points,
-        #                                            settings.units,
-        #                                            settings.resolution)
-
-        # per = getPerspectiveTransform(np.array(src, np.float32),np.array(dst, np.float32))
-
-        # print(per)
+        main()

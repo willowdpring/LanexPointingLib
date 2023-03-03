@@ -104,14 +104,14 @@ def integrate_inverse(x2, y2, result, src, dst):
     gaussians = [] # [ [amplitude, offset, xo, yo, theta, sigma_x, sigma_y] ] 
     integrals = [] # [ float ]
 
-    if result.model.name == "lm_gaus2d":
+    if result.model.name == "Model(lm_gaus2d)":
         # decompose the two gaussians
+        gauss = [result.best_values["amplitude"],0,result.best_values["xo"],result.best_values["yo"],result.best_values["sigma_x"],result.best_values["sigma_y"],result.best_values["theta"]]
+
+    elif result.model.name == "Model(lm_double_gaus2d)":
+        # zero the offset
         gaussians.append( [result.best_values["amplitude_1"],0,result.best_values["xo_1"],result.best_values["yo_1"],result.best_values["sigma_x_1"],result.best_values["sigma_y_1"],result.best_values["theta_1"]] )
         gaussians.append( [result.best_values["amplitude_2"],0,result.best_values["xo_2"],result.best_values["yo_2"],result.best_values["sigma_x_2"],result.best_values["sigma_y_2"],result.best_values["theta_2"]] )
-
-    elif result.model.name == "lm_double_gaus2d":
-        # zero the offset
-        gauss = [result.best_values["amplitude"],0,result.best_values["xo"],result.best_values["yo"],result.best_values["sigma_x"],result.best_values["sigma_y"],result.best_values["theta"]]
 
     else:
         print("Sorry Integration of Gausian Bunches not Implimented for the Model : {}".format(result.model.name))
@@ -119,9 +119,7 @@ def integrate_inverse(x2, y2, result, src, dst):
     
     if len(gaussians) != 0:
         for gaus in gaussians:
-            bunch_ary = fit.lm_gaus2d(x2,y2,**gaus)
-            cam_ary = perspective.TransformFromThetaPhi(bunch_ary,src,dst)    
-            integrals.append(np.sum(cam_ary))
+            integrals.append(gaus[0]*gaus[1]*gaus[2]*np.sqrt(np.pi * 2))
     return(integrals)
 
 
@@ -212,7 +210,7 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
 
             fitted = fmodel.func(x2, y2, **result.best_values)
 
-            bunch_charge = integrate_inverse(x2, y2, result, src, dst)
+            bunch_charge = integrate_gausians(x2, y2, result, src, dst)
 
             stats.append(
                 [result.rsquared, result.best_values, result.covar])
