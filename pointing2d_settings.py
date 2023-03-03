@@ -16,9 +16,9 @@ verbose = True
 
 targetDir = "C:\\Users\\BunkerC-User\\Documents\\LanexPointingTEST\\230223\\Run001"  #[str] the target root directory saves will go in ./EXPORTED
 
-start = 1  # [int] the first file to analyse
+start = 0  # [int] the first file to analyse
 
-stop = -1  # [int] the last file to analyse
+stop = 4 # [int] the last file to analyse
 
 decimate = 1  # [int] the step size
 
@@ -40,9 +40,7 @@ background_scale = 1.1  #[float] a multiplicative factor applied to the backgrou
 
 plotBackgroundSubtraction = True  # [bool] if True we will generate a plot before and after subtracting the backgtround to check
 
-kernel = norm_gaus2d_ary(
-    60, 3, 60, 3
-)  # [2d array] The convolution kernel applied before background subtraction
+kernel = "backfilt.norm_gaus2d_ary(60, 3, 60, 3)"  # [string] when evaluated this should make the The convolution kernel applied before background subtraction
 
 filters = [
     3, 3, 3, 3, 53, 53, 53, 53

@@ -36,11 +36,12 @@ def get_background():
 
     """
     if settings.background is not None:
+        kernel = eval(settings.kernel)
         backgroundData = np.array(PIL.Image.open(settings.background))
         for f in settings.filters:
             backgroundData = backfilt.filterImage(backgroundData, f)
 
-        backgroundData = convolve(backgroundData, settings.kernel, mode='same')
+        backgroundData = convolve(backgroundData, kernel, mode='same')
         noise_scale = np.percentile(backgroundData, settings.background_clip)
         backgroundData = np.clip(backgroundData - noise_scale, 0, np.inf)
 
@@ -76,10 +77,10 @@ def check_calibration_transformation(exportDir, src, dst):
                                      settings.zoom_radius, saveDir)
 
 
-def integrate_inverse(x2, y2, result, src, dst):
+def integrate_gausians(x2, y2, result, src, dst):
     """
     A function that generates data from the plots the fitted gausians and transforms them back into the camera frame to integrate
-    TODO: WIP needs testing
+    TODO: UNUSED
      
     Parameters
     ----------
@@ -119,7 +120,7 @@ def integrate_inverse(x2, y2, result, src, dst):
     
     if len(gaussians) != 0:
         for gaus in gaussians:
-            integrals.append(gaus[0]*gaus[1]*gaus[2]*np.sqrt(np.pi * 2))
+            integrals.append(gaus[0]*gaus[4]*gaus[5]*np.sqrt(np.pi * 2))
     return(integrals)
 
 
@@ -128,6 +129,8 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
 
     tifFiles = backfilt.walkDir(settings.targetDir)
 
+    kernel = eval(settings.kernel)
+
     stats = []
 
     for file in tifFiles:
@@ -135,7 +138,7 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
 
         for f in settings.filters:
             pixel_data = backfilt.filterImage(pixelData, f)
-        pixeldata = convolve(pixelData, settings.kernel, mode='same')
+        pixeldata = convolve(pixelData, kernel, mode='same')
 
         if backgroundData is not None:
             if not backgroundData.shape == pixelData.shape:
@@ -210,8 +213,6 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
 
             fitted = fmodel.func(x2, y2, **result.best_values)
 
-            bunch_charge = integrate_gausians(x2, y2, result, src, dst)
-
             stats.append(
                 [result.rsquared, result.best_values, result.covar])
 
@@ -228,6 +229,10 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
                        colors='black',
                        extent=(x.min(), x.max(), y.min(), y.max()),
                        linewidths=0.8)
+
+            bunch_charge = (result.best_values["amplitude_1"]*result.best_values["sigma_x_1"]*result.best_values["sigma_y_1"])
+
+            ax.set_title(r'Charge of :{:.1f} [arb. Units] \n at $\theta$ = {:.1f}, $\phi$ = {:.1f}'.format(bunch_charge,result.best_values["xo_1"],result.best_values["yo_1"]))
             plt.show()
             name = file[:-5].split('\\')[-1]
 

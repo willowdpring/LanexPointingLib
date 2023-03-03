@@ -32,7 +32,6 @@ def norm_gaus_ary(s, n=3):
         g[i] = a * np.exp(-((x - ((n - 1) * s))**2) / (s**2))
     return (g)
 
-
 def norm_gaus2d_ary(s1, n1=3, s2=1, n2=3):
     g1 = norm_gaus_ary(s1, n1)
     g2 = norm_gaus_ary(s2, n2)

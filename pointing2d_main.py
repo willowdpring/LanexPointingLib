@@ -45,7 +45,6 @@ def main():
 
     input("close? : ")
 
-
 if __name__ == "__main__":
     if settings.assert_reasonable():
         main()
