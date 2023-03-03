@@ -15,6 +15,7 @@ REQUIREMENTS:
     opencv
 
 installation : 
+
     - conda install numpy numba scipy pillow matplotlib -y
     
     - conda install -c conda-forge lmfit opencv -y
