@@ -279,18 +279,30 @@ def cart2sph(x, y, z):
     az = m.atan2(y, x)  # phi
     return r, elev, az
 
-def src_dst_from_PIX_XYZ(known_points, units, resolution):
+def src_dst_from_known_points(known_points, units, resolution,lanex_onAx_dist, lanex_theta, lanex_inPlane_dist, lanex_height, lanex_vertical_offset):
     """
     generates src, dst arrays for the perspective transform
 
     Parameters
     ----------
-    known_points : np.array([[int,int],[float,float,float],str]) 
-        A 4 element array with each element being a list of [p_x,p_y], [x,y,z], and comment string 
+    known_points : dict [int,int,int]
+        A 4 element dict with each corner eg 'TR' being a list of [rulermark,p_x,p_y]
     units: int
         units/radian (typically 1000)
     resolution: int
         pixels/unit (typically 10)
+    lanex_onAx_dist: [float] 
+        mm distance to the lanex plane in the axis of the laser
+    lanex_theta: [float] 
+        deg angle of the normal of the lanex plane to the laser  
+        # WARN: this assumes that the lanex plane is vertical and only rotates about z
+    lanex_inPlane_dist: [float] 
+        mm distance of the edge of the lanex (0mm ruler mark) 
+        from the axis in the plane of the lanex -ve implies that the laser axes intersects the lanex
+    lanex_height: [float] 
+        mm height of the lanex from the plane of the laser 
+    lanex_vertical_offset: [float]
+        mm height of the center of the lanex wrt. the laser level
 
     Returns
     -------
@@ -300,18 +312,36 @@ def src_dst_from_PIX_XYZ(known_points, units, resolution):
         list of destination points in theta phi [rad/units]
 
     """
-    assert len(known_points) == 4
+    if settings.verbose:
+        print("Generating transformation coords from known points: ")
+
+    order = ['TR','BR','BL','TL']
 
     src = []
     dst = []
 
-    for point in known_points:
-        try:
-            src.append(point[0])
-            r, t, p = cart2sph(*point[1][::-1])
-            dst.append([units * resolution * t, units * resolution * p])
-        except (IndexError):
-            print("ERROR ON {}".format(point[2]))
+    cosT = np.cos(np.radians(lanex_theta))
+    sinT = np.sin(np.radians(lanex_theta))
+
+    for corner in order:
+        if settings.verbose:
+            print("{} Corner".format(corner))
+        src.append([known_points[corner][1],known_points[corner][2]])
+
+        x = - cosT * (lanex_inPlane_dist + known_points[corner][0])
+        z = lanex_onAx_dist - sinT * (lanex_inPlane_dist + known_points[corner][0])
+
+        if 'T' in corner:
+            y = lanex_vertical_offset + (0.5 * lanex_height)
+        else:
+            y = lanex_vertical_offset - (0.5 * lanex_height)
+        r, p, t = cart2sph(z,x,y)
+        if settings.verbose:
+            print("x:{}, y:{}, z:{}".format(x,y,z))
+            print("r:{}, theta:{}, phi:{}".format(r,t,p))
+        dst.append([units * resolution * t, units * resolution * p])
+    if settings.verbose:
+        print("src: {}\ndst: {}".format(src,dst))
 
     return(np.array(src), np.array(dst))
 
@@ -534,11 +564,25 @@ def check_transformation(pixelData,
     return(fig,ax)
 
 if __name__ == "__main__":
-    src, dst = src_dst_from_PIX_XYZ(settings.known_points, settings.units,
-                                    settings.resolution)
+    src, dst = src_dst_from_known_points(settings.known_points, 
+                                         settings.units,
+                                         settings.resolution,
+                                         settings.lanex_onAx_dist,
+                                         settings.lanex_theta,
+                                         settings.lanex_inPlane_dist,
+                                         settings.lanex_height,
+                                         settings.lanex_vertical_offset)
     
     pixelData = np.array(PIL.Image.open(settings.pointingCalibrationImage))
 
+    check_transformation(pixelData,
+                         src,
+                         dst,
+                         settings.units,
+                         settings.resolution,
+                         settings.zoom_radius,
+                         saveDir=None)
+    
     check_integration(pixelData,
                          src,
                          dst,

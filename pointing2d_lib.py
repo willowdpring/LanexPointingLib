@@ -133,7 +133,7 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
 
     stats = []
 
-    for file in tifFiles:
+    for file in tifFiles[settings.start:settings.stop:settings.decimate]:
         pixelData = np.array(PIL.Image.open(file))
 
         for f in settings.filters:
@@ -359,9 +359,9 @@ def generate_report(stats, exportDir):
     for fig in report_figures:
         if settings.saving:
             fig[0].savefig("{}\\{}_fig".format(exportDir, fig[1]))
-            fig[0].close()
         else:
             fig[0].show()
+            settings.blockingPlot = True
 
 if __name__ == "__main__":
     print("this is not the main file")

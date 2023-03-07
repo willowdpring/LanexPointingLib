@@ -24,9 +24,14 @@ def main():
     if settings.saving and not os.path.exists(exportDir):  # check if it exists
         os.mkdir(exportDir)  # create it if not
 
-    src, dst = perspective.src_dst_from_PIX_XYZ(settings.known_points,
+    src, dst = perspective.src_dst_from_known_points(settings.known_points,
                                                 settings.units,
-                                                settings.resolution)
+                                                settings.resolution,
+                                                settings.lanex_onAx_dist, 
+                                                settings.lanex_theta, 
+                                                settings.lanex_inPlane_dist, 
+                                                settings.lanex_height,
+                                                settings.lanex_vertical_offset)
 
     pointing2d_lib.check_calibration_transformation(exportDir, src, dst)
 
