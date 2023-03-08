@@ -229,11 +229,15 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
                        colors='black',
                        extent=(x.min(), x.max(), y.min(), y.max()),
                        linewidths=0.8)
+            
+            smaller = '1'
+            if result.best_values["sigma_x_1"] > result.best_values["sigma_x_2"]:
+                smaller = '2'
 
-            bunch_charge = (result.best_values["amplitude_1"]*result.best_values["sigma_x_1"]*result.best_values["sigma_y_1"])
+            bunch_charge = (result.best_values["amplitude_{}".format(smaller)]*result.best_values["sigma_x_{}".format(smaller)]*result.best_values["sigma_y_{}".format(smaller)])
 
-            ax.set_title(r'Charge of :{:.1f} [arb. Units] \n at $\theta$ = {:.1f}, $\phi$ = {:.1f}'.format(bunch_charge,result.best_values["xo_1"],result.best_values["yo_1"]))
-            plt.show()
+            ax.set_title('Charge of :{:.1f} [arb. Units] \n'.format(bunch_charge) + r'at $\theta$ = {:.1f}, $\phi$ = {:.1f}'.format(result.best_values["xo_{}".format(smaller)],result.best_values["yo_{}".format(smaller)]))
+            plt.draw()
             name = file[:-5].split('\\')[-1]
 
             if settings.saving:
@@ -242,6 +246,9 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
                 lm.model.save_modelresult(result, savefile)
                 fig.savefig(saveplot)
                 plt.close(fig)
+            else:
+                settings.blockingPlot = True
+
         else:
             print("I don't think there are electrons in this image: {}".
                   format(file))
@@ -360,7 +367,7 @@ def generate_report(stats, exportDir):
         if settings.saving:
             fig[0].savefig("{}\\{}_fig".format(exportDir, fig[1]))
         else:
-            fig[0].show()
+            fig[0].draw()
             settings.blockingPlot = True
 
 if __name__ == "__main__":

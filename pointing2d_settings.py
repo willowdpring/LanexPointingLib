@@ -17,13 +17,14 @@ targetDir = "C:\\Users\\BunkerC-User\\Documents\\LanexPointingTEST\\230223\\Run0
 
 start = 0  # [int] the first file to analyse
 
-stop = 5 # [int] the last file to analyse
+stop = -1 # [int] the last file to analyse
 
 decimate = 1  # [int] the step size
 
 saving = True  # [bool] if True we will save the numpy arrays and png's of the resulting contor plots?
 
-overwrite = False  # [bool] if True we will overwrite existing save data (in the ./EXPORTED/ directory on a file by file basis)
+overwrite = True  # [bool] if True we will overwrite existing save data (in the ./EXPORTED/ directory on a file by file basis)
+
 """ Backgrounds are generated from user selected files in a seperate directory 
     by compressing all the tiff files in that directory along z using a max() and a mean() method  
 """
@@ -35,19 +36,19 @@ background = "{}\\EXPORTED\\MAX_BAK.tiff".format(background_dir)  # [str] the fi
 
 background_clip = 40  # [int] the percentile below which the background data is ignored
 
-background_scale = 0  #[float] a multiplicative factor applied to the background data
+background_scale = 1  #[float] a multiplicative factor applied to the background data
 
 plotBackgroundSubtraction = False  # [bool] if True we will generate a plot before and after subtracting the backgtround to check
 
-kernel = "backfilt.norm_gaus2d_ary(60, 3, 60, 3)"  # [string] when evaluated this should make the The convolution kernel applied before background subtraction
+kernel = "backfilt.norm_gaus2d_ary(30, 3, 30, 3)"  # [string] when evaluated this should make the The convolution kernel applied before background subtraction
 
 filters = [
     3, 3, 3, 3, 53, 53, 53, 53
 ]  # [list[3|5|53]] the sequence of x-ray filters to apply (see backfiltlib.py)
 
-ignore_regions = [
-    [[213, 543], [223, 553]], [[20, 495], [120, 555]], [[105, 585], [115, 599]]
-]  # [array([[[x1,y1],[x2,y2]]])] list of paird x,y, coordinates for rectangles to be ignored # for user defined regions
+ignore_regions = []
+#    [[213, 543], [223, 553]], [[20, 495], [120, 555]], [[105, 585], [115, 599]]
+#]  # [array([[[x1,y1],[x2,y2]]])] list of paird x,y, coordinates for rectangles to be ignored # for user defined regions
 
 ignore_ptvs_below = 10  # the peak to mean value ratio above which the image is accepted as having electrons
 """ The transformation is generated from four known points, 
@@ -59,9 +60,9 @@ units = 1000  # /radian
 
 resolution = 10  # pixels/unit
 
-zoom_radius = 30  # the radius of the analysis box
+zoom_radius = 50  # the radius of the analysis box
 
-pointingCalibrationImage = "C:\\Users\\BunkerC-User\\Documents\\LanexPointingTEST\\230223\\Run001\\On-Axis_lanex-02232023140923-1.tiff" # 0\\Lanex_in.tiff"
+pointingCalibrationImage = "C:\\Users\\BunkerC-User\\Documents\\LanexPointingTEST\\230220\\Lanex_in.tiff"
 
 dh = 10  # a nudge to vertical offset of the lanex in mm
 dx = 12  # a nudge to horizontal offset of the lanex in mm

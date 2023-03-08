@@ -33,7 +33,7 @@ def ceil2(num):
     num : float
         the next power of 2    
     """
-    return(np.pow(ceil(np.log2(num)),2))
+    return(np.pow(np.ceil(np.log2(num)),2))
 
 
 def getTransform(pixelDataShape,src,dst):
@@ -193,7 +193,7 @@ def GenerateWeightArray(pixelDataShape, warp_transform, plotting = False):
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.set_zlabel("Integration Weight")
-        fig.show()
+        fig.draw()
         settings.blockingPlot = True
 
     return weights
@@ -558,7 +558,7 @@ def check_transformation(pixelData,
         saveplot = "{}\\transformation".format(saveDir)
         fig.savefig(saveplot)
     else:        
-        fig.show()
+        fig.draw()
         settings.blockingPlot = True
 
     return(fig,ax)

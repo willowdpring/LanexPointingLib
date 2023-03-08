@@ -9,13 +9,10 @@ the __main__ file that should be run
 """
 import numpy as np
 import os
-import PIL
+import matplotlib.pyplot as plt
 import pointing2d_settings as settings
 import pointing2d_perspective as perspective
-import pointing2d_fit as fit
 import pointing2d_lib
-
-from cv2 import getPerspectiveTransform
 
 def main():
 
@@ -37,8 +34,7 @@ def main():
 
     backgroundData = pointing2d_lib.get_background()
 
-    if os.path.exists(
-            "{}\\stats.npy".format(exportDir)) and not settings.overwrite:
+    if os.path.exists("{}\\stats.npy".format(exportDir)) and not settings.overwrite:
         print("found existing stats file in export directory")
         stats = np.load("{}\\stats.npy".format(exportDir),
                         allow_pickle=True,
@@ -47,8 +43,9 @@ def main():
         stats = pointing2d_lib.generate_stats(exportDir, src, dst, backgroundData)   
 
     report = pointing2d_lib.generate_report(stats, exportDir)
-
-    input("close? : ")
+    if settings.blockingPlot:
+        plt.show()
+        input("close? : ")
 
 if __name__ == "__main__":
     if settings.assert_reasonable():

@@ -442,7 +442,7 @@ def plot_test_gausians():
                 fig, ax = plt.subplots(1, 1)
                 ax.imshow(zary)
                 ax.set_title("s_x={}, s_y={}, theta={}".format(sx,sy,th))
-                fig.show()
+                fig.draw()
 
     settings.blockingPlot = True
 
