@@ -34,13 +34,13 @@ generate_background_files = True  # [bool] if True we will generate /EXPORTED/MA
 
 background = "{}\\EXPORTED\\MAX_BAK.tiff".format(background_dir)  # [str] the file to use as a background
 
-background_clip = 40  # [int] the percentile below which the background data is ignored
+background_clip = 1  # [int] the percentile below which the background data is ignored
 
-background_scale = 1  #[float] a multiplicative factor applied to the background data
+background_scale = 0.9  #[float] a multiplicative factor applied to the background data
 
 plotBackgroundSubtraction = False  # [bool] if True we will generate a plot before and after subtracting the backgtround to check
 
-kernel = "backfilt.norm_gaus2d_ary(30, 3, 30, 3)"  # [string] when evaluated this should make the The convolution kernel applied before background subtraction
+kernel = "[[1]]" # backfilt.norm_gaus2d_ary(60, 3, 60, 3)"  # [string] when evaluated this should make the The convolution kernel applied before background subtraction
 
 filters = [
     3, 3, 3, 3, 53, 53, 53, 53
