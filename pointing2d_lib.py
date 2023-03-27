@@ -10,14 +10,17 @@ A generic library of supporting functions for __main__
 import numpy as np
 import os
 import PIL
+from scipy.stats import norm
 from scipy.signal import convolve
 import pointing2d_settings as settings
 import pointing2d_backfiltlib as backfilt
 import pointing2d_perspective as perspective
 import pointing2d_fit as fit
+from pointing2d_fit import lm_double_gaus2d # Ineeded for loading models from file 
 import lmfit as lm
 
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
 from matplotlib import rc
 
 font = {'family': 'Corbel', 'weight': 'normal', 'size': 14}
@@ -124,6 +127,7 @@ def integrate_gausians(x2, y2, result, src, dst):
     return(integrals)
 
 
+
 def generate_stats(exportDir, src, dst, backgroundData=None):
     fmodel = fit.setup_double_2d_gauss_model()
 
@@ -134,6 +138,10 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
     stats = []
 
     for file in tifFiles[settings.start:settings.stop:settings.decimate]:
+        name = file[:-5].split('\\')[-1]
+        
+        savefile = "{}\\{}_data".format(exportDir, name)
+
         pixelData = np.array(PIL.Image.open(file))
 
         for f in settings.filters:
@@ -167,7 +175,7 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
         ]
 
         roi = np.array(transformed[zoom_x_lims[0]:zoom_x_lims[1],
-                                   zoom_y_lims[1]:zoom_y_lims[0]])
+                                    zoom_y_lims[1]:zoom_y_lims[0]])
 
         if settings.plotBackgroundSubtraction:
             roi_pre = roi
@@ -190,19 +198,19 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
                                     vmin=np.min(roi),
                                     vmax=np.max(roi))
                 cax1 = rfig.colorbar(im1,
-                                     ax=rax[0],
-                                     pad=cbpad,
-                                     shrink=cbscale,
-                                     location='right')
+                                        ax=rax[0],
+                                        pad=cbpad,
+                                        shrink=cbscale,
+                                        location='right')
 
                 im2 = rax[1].imshow(roi,
                                     vmin=np.min(roi),
                                     vmax=np.max(roi))
                 cax2 = rfig.colorbar(im2,
-                                     ax=rax[1],
-                                     pad=cbpad,
-                                     shrink=cbscale,
-                                     location='right')
+                                        ax=rax[1],
+                                        pad=cbpad,
+                                        shrink=cbscale,
+                                        location='right')
 
             x = np.linspace(-settings.zoom_radius, settings.zoom_radius, roi.shape[1])
             y = np.linspace(-settings.zoom_radius, settings.zoom_radius, roi.shape[0])
@@ -210,6 +218,18 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
             x2, y2 = np.meshgrid(x, y)
 
             result = fit.fit_double_gauss2d_lm(x2, y2, roi, fmodel)
+
+        else:
+            print("I don't think there are electrons in this image: {}".
+                    format(file))
+            print("max = {}".format(np.max(roi)))
+            print("mean = {}".format(np.mean(roi)))
+            print("med = {}".format(np.median(roi)))
+            result = None
+            x2 = None
+            y2 = None
+            roi = None
+        if result is not None:
 
             fitted = fmodel.func(x2, y2, **result.best_values)
 
@@ -219,16 +239,16 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
             fig, ax = plt.subplots(1, 1)
 
             ax.imshow(roi,
-                      cmap=plt.cm.jet,
-                      origin='lower',
-                      extent=(x.min(), x.max(), y.min(), y.max()))
+                        cmap=plt.cm.jet,
+                        origin='lower',
+                        extent=(x.min(), x.max(), y.min(), y.max()))
             ax.contour(x,
-                       y,
-                       fitted,
-                       2,
-                       colors='black',
-                       extent=(x.min(), x.max(), y.min(), y.max()),
-                       linewidths=0.8)
+                        y,
+                        fitted,
+                        2,
+                        colors='black',
+                        extent=(x.min(), x.max(), y.min(), y.max()),
+                        linewidths=0.8)
             
             smaller = '1'
             if result.best_values["sigma_x_1"] > result.best_values["sigma_x_2"]:
@@ -237,25 +257,18 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
             bunch_charge = (result.best_values["amplitude_{}".format(smaller)]*result.best_values["sigma_x_{}".format(smaller)]*result.best_values["sigma_y_{}".format(smaller)])
 
             ax.set_title('Charge of :{:.1f} [arb. Units] \n'.format(bunch_charge) + r'at $\theta$ = {:.1f}, $\phi$ = {:.1f}'.format(result.best_values["xo_{}".format(smaller)],result.best_values["yo_{}".format(smaller)]))
-            plt.draw()
             name = file[:-5].split('\\')[-1]
 
             if settings.saving:
-                savefile = "{}\\{}_data".format(exportDir, name)
                 saveplot = "{}\\{}_plot".format(exportDir, name)
                 lm.model.save_modelresult(result, savefile)
                 fig.savefig(saveplot)
                 plt.close(fig)
             else:
+                fig.show()
                 settings.blockingPlot = True
 
-        else:
-            print("I don't think there are electrons in this image: {}".
-                  format(file))
-            print("max = {}".format(np.max(roi)))
-            print("mean = {}".format(np.mean(roi)))
-            print("med = {}".format(np.median(roi)))
-
+        
     if settings.saving:
         np.save("{}\\stats".format(exportDir),
                 stats,
@@ -273,8 +286,9 @@ def generate_report(stats, exportDir):
     u_x = np.array([stats[i][1]['xo_2'] for i in range(len(stats))])
     u_y = np.array([stats[i][1]['yo_2'] for i in range(len(stats))])
 
-    report_figures.append([plt.figure(figsize=(9, 9), dpi=360), 'pointing'])
+    report_figures.append([plt.figure(figsize = (9,9), dpi=360), 'pointing']) 
     report_figures[-1][0].set_tight_layout(True)
+  
     gs_hist = report_figures[-1][0].add_gridspec(2,
                                                  2,
                                                  width_ratios=(4, 1),
@@ -286,25 +300,65 @@ def generate_report(stats, exportDir):
                                                  wspace=0.05,
                                                  hspace=0.05)
 
-    nbins = int(max(len(stats) / 16, 6))
+    nbins = int(max(len(stats) / 10, 10))
     pAx = report_figures[-1][0].add_subplot(gs_hist[1, 0], )
     pAx.minorticks_on()
+    uux = np.mean(u_x)
+    uuy = np.mean(u_y)
+    
+    sx = np.sqrt(u_x.var())
+    sy = np.sqrt(u_y.var())
+
+    u_0_x = u_x-uux
+    u_0_y = u_y-uuy 
+    pAx.hist2d(u_0_x, u_0_y, nbins, [[-25, 25], [-25, 25]]) 
+    pAx.set_aspect('equal')
+    pAx.add_patch(Circle((0,0),6,ec='red',fill=False))
+ 
+    xlabels = [item.get_text() if item.get_text() != '0' else r'$\mu_x$' for item in pAx.get_xticklabels()]
+    pAx.set_xticklabels(xlabels)
+
+    ylabels = [item.get_text() if item.get_text() != '0' else r'$\mu_y$' for item in pAx.get_yticklabels()]
+    pAx.set_yticklabels(ylabels)
+
     pax_histx = report_figures[-1][0].add_subplot(gs_hist[0, 0], sharex=pAx)
     pax_histy = report_figures[-1][0].add_subplot(gs_hist[1, 1], sharey=pAx)
-    pAx.hist2d(u_x, u_y, nbins)
-    pax_histx.hist(
-        u_x,
-        nbins,
-        color='red',
-    )
+
+
     pax_histx.axes.get_xaxis().set_visible(False)
     pax_histy.axes.get_yaxis().set_visible(False)
-    pax_histy.hist(u_y, nbins, color='green', orientation='horizontal')
-    pAx.set_xlabel("x location [/mRad] mean:{:.2f}  var:{:.2f}".format(
-        u_x.mean(), u_x.var()))
-    pAx.set_ylabel("y location [/mRad] mean:{:.2f}  var:{:.2f}".format(
-        u_y.mean(), u_y.var()))
 
+    pax_histx.hist(
+        u_0_x,
+        nbins,
+        density = True,
+        color='green',
+    )
+    pax_histy.hist(
+        u_0_y, 
+        nbins, 
+        density = True,
+        color='green', 
+        orientation='horizontal'
+    )
+
+    xmin, xmax = pax_histx.get_xlim()
+    ymin, ymax = pax_histy.get_ylim()
+    x = np.linspace(xmin, xmax, 100)
+    y = np.linspace(ymin, ymax, 100)
+    px = norm.pdf(x, 0, sx)
+    py = norm.pdf(y, 0, sy)
+
+    pax_histx.plot(x, px, 'k', linewidth=2)
+    pax_histy.plot(py, y, 'k', linewidth=2)
+
+    xlab = "x location [/mRad]\n $\\mu_x$ = {:.2f},  $\\sigma_x$ = {:.2f}".format(uux,sx)
+    ylab = "y location [/mRad]\n $\\mu_y$ = {:.2f},  $\\sigma_y$ = {:.2f}".format(uuy,sy)
+    pAx.set_xlabel(xlab)
+    pAx.set_ylabel(ylab)
+    report_figures[-1][0].set_tight_layout(True)
+    
+        
     ##
     #   Bunch Emittence:
     #

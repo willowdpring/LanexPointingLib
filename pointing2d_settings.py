@@ -13,17 +13,18 @@ import os
 """
 verbose = True # [bool] this will toggle printouts in many functions, set to True to enabe logging to terminal and assist debugging 
 
-targetDir = "C:\\Users\\BunkerC-User\\Documents\\LanexPointingTEST\\230223\\Run001"  #[str] the target root directory saves will go in ./EXPORTED
+targetDir = "C:/Users/willo/Documents/BunkerC/Dec 05/Pointing Lanex/Run004"  #[str] the target root directory saves will go in ./EXPORTED
+#targetDir = "C:\\Users\\BunkerC-User\\Documents\\LanexPointingTEST\\230223\\Run001"  #[str] the target root directory saves will go in ./EXPORTED
 
 start = 0  # [int] the first file to analyse
 
-stop = -1 # [int] the last file to analyse
+stop = -1 # [int] the last file to analyse -1 for all
 
 decimate = 1  # [int] the step size
 
 saving = True  # [bool] if True we will save the numpy arrays and png's of the resulting contor plots?
 
-overwrite = True  # [bool] if True we will overwrite existing save data (in the ./EXPORTED/ directory on a file by file basis)
+overwrite = False  # [bool] if True we will overwrite existing save data (in the ./EXPORTED/ directory on a file by file basis)
 
 """ Backgrounds are generated from user selected files in a seperate directory 
     by compressing all the tiff files in that directory along z using a max() and a mean() method  
@@ -36,21 +37,22 @@ background = "{}\\EXPORTED\\MAX_BAK.tiff".format(background_dir)  # [str] the fi
 
 background_clip = 1  # [int] the percentile below which the background data is ignored
 
-background_scale = 0.9  #[float] a multiplicative factor applied to the background data
+background_scale = 1  #[float] a multiplicative factor applied to the background data
 
-plotBackgroundSubtraction = False  # [bool] if True we will generate a plot before and after subtracting the backgtround to check
+plotBackgroundSubtraction = True  # [bool] if True we will generate a plot before and after subtracting the backgtround to check
 
-kernel = "[[1]]" # backfilt.norm_gaus2d_ary(60, 3, 60, 3)"  # [string] when evaluated this should make the The convolution kernel applied before background subtraction
+kernel = "backfilt.norm_gaus2d_ary(12, 3, 12, 3)"  # [string] when evaluated this should make the The convolution kernel applied before background subtraction
 
 filters = [
     3, 3, 3, 3, 53, 53, 53, 53
 ]  # [list[3|5|53]] the sequence of x-ray filters to apply (see backfiltlib.py)
 
-ignore_regions = []
-#    [[213, 543], [223, 553]], [[20, 495], [120, 555]], [[105, 585], [115, 599]]
-#]  # [array([[[x1,y1],[x2,y2]]])] list of paird x,y, coordinates for rectangles to be ignored # for user defined regions
+ignore_regions = [
+    [[213, 543], [223, 553]], [[20, 495], [120, 555]], [[105, 585], [115, 599]]
+]
+# [array([[[x1,y1],[x2,y2]]])] list of paird x,y, coordinates for rectangles to be ignored # for user defined regions
 
-ignore_ptvs_below = 10  # the peak to mean value ratio above which the image is accepted as having electrons
+ignore_ptvs_below = 12  # the peak to mean value ratio above which the image is accepted as having electrons
 """ The transformation is generated from four known points, 
     pixel values in the first and [x,y,z] in the second  with the laser along z and the target at origin
     [theta, phi] coordinates can be used if the toggle is set to true 
@@ -60,9 +62,10 @@ units = 1000  # /radian
 
 resolution = 10  # pixels/unit
 
-zoom_radius = 50  # the radius of the analysis box
+zoom_radius = 30  # the radius of the analysis box
 
-pointingCalibrationImage = "C:\\Users\\BunkerC-User\\Documents\\LanexPointingTEST\\230220\\Lanex_in.tiff"
+#pointingCalibrationImage = "C:\\Users\\BunkerC-User\\Documents\\LanexPointingTEST\\230220\\Lanex_in.tiff"
+pointingCalibrationImage = "C:/Users/willo/Documents/BunkerC/LanexBeamProfile/HighE_LanexIN.tiff"
 
 dh = 10  # a nudge to vertical offset of the lanex in mm
 dx = 12  # a nudge to horizontal offset of the lanex in mm
@@ -90,14 +93,23 @@ lanex_inPlane_dist = -50 # [float] mm distance of the edge of the lanex (0mm rul
                                          
 lanex_height = 180 # [float] mm height of the lanex screen
 
-lanex_vertical_offset = 10 # [float] mm height of the center plane of the lanex from the plane of the laser 
+lanex_vertical_offset = -10 # [float] mm height of the center plane of the lanex from the plane of the laser 
 
 # Known points is a dict of four lanex corners as keys 
 # and 3 element arrays as entries: [mm Mark on ruler, pixel X coord, pixel Y coord]
+"""
+# these are for Feb \\230220\\Lanex_in.tiff
 known_points = {'TR': [0,1180,130],  # TR - Top Right 
                 'BL': [280,213,942], # BL - Bottom Left
                 'BR': [0,1159,877],  # BR - Bottom right
                 'TL': [290,95,79]    # TL - Top Left
+                }
+"""
+# these are for December \\
+known_points = {'TR': [0,891, 91],  # TR - Top Right 
+                'BL': [160,346, 950], # BL - Bottom Left
+                'BR': [0,873, 882],  # BR - Bottom right
+                'TL': [230,25,23]    # TL - Top Left
                 }
 
 """
