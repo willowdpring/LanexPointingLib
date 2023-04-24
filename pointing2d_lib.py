@@ -28,7 +28,7 @@ font = {'family': 'Corbel', 'weight': 'normal', 'size': 14}
 rc('font', **font)
 
 
-def get_background():
+def get_background(backgroundPath = None):
     """
     Returns the data array from the specified background image file 
 
@@ -38,9 +38,13 @@ def get_background():
         thedata array for the background that will be subtracted from the images
 
     """
-    if settings.background is not None:
+    if backgroundPath is not None:
+        background = backgroundPath
+    else:
+       background = settings.background 
+    if background is not None:
         kernel = eval(settings.kernel)
-        backgroundData = np.array(PIL.Image.open(settings.background))
+        backgroundData = np.array(PIL.Image.open(background))
         for f in settings.filters:
             backgroundData = backfilt.filterImage(backgroundData, f)
 
@@ -188,7 +192,7 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
         for f in settings.filters:
             roi = backfilt.filterImage(roi, f)
 
-        if np.max(roi) > settings.ignore_ptvs_below * np.median(roi):
+        if np.max(roi) > settings.ignore_ptvs_below * np.mean(roi):
 
             if settings.plotBackgroundSubtraction:
                 cbpad = 0

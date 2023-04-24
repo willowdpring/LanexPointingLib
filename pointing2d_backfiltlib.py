@@ -324,5 +324,6 @@ def generateAndPlotBackgrounds(
 
 
 if __name__ == "__main__":
-    background_dir = settings.background_dir
-    generateAndPlotBackgrounds(background_dir)
+#    background_dir = settings.background_dir
+#    generateAndPlotBackgrounds(background_dir)
+    print(walkDir("C:\\Users\\BunkerC-User\\Documents\\WigglerSpectrometer\\2023\\20230419\\rundelay_test_120_prescale15",ignore_strings=['shutter']))
