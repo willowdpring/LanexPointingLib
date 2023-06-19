@@ -9,8 +9,11 @@ import pointing2d_settings as settings
 from pointing2d_lib import get_background 
 import pointing2d_backfiltlib as backfilt
 import pointing2d_perspective as perspective
+from scipy.constants import e as electron_charge
 from tqdm import tqdm
 import cv2
+from PIL import Image
+
 
 ########################################################################
 #   Calibration, is done by comparison to a BAS_MP Phosphoir image plate
@@ -22,33 +25,62 @@ import cv2
 #
 ########################################################################
 def psl(g,
-        r = 25, # resolution /um
-        l = 5, # latitude
-        s = 500, # PMT sensitivity
-        b = 16, # bitdepth
+        r = 25, 
+        l = 5, 
+        s = 500, 
+        b = 16, 
        ):
     """
-    A function for calculating the Photo Luminescence from the greyscale data of the scan 
+    A function for calculating the Photo Luminescence from the greyscale data of the scan taken with the FLA 7000 
     see ref 1
+
+    Parameters
+    ----------
+    g : b-bit uint       grey value from scan
+    r : int              resolution
+    l : int  (4 or 5)    latitude
+    s : int 500 - 4000   sensitivity of the photo multiplier tube (PMT)
+    b : int 8, 12 or 16  bit depth
+
+    Returns
+    -------
+    p : float  the value of the photo stimulated luminescence for the pixel
+
     """
     p = ((r**2)/10)*(4000/s)*10**(l*((g/(2**b-1))-0.5))
     
     return(p)
 
-from scipy.constants import e as electron_charge
 
 def n_e_MP(psl):
+    """
+    A function for calculating the number of electrons incident on a BAS-MP image plate from the PSL 
+
+    Parameters
+    ----------
+    psl : float  the value of the photo stimulated luminescence for the pixel
+
+    Returns
+    -------
+    electron_count : float  the number of electrons incident on the pixel
+
+    """
     MP_Respose = 16.2E-3 # (ref 2)
     electron_count = psl/MP_Respose
     return(electron_count)
 
 def test_MP(g = 35000):
+    # sanity check
     p = psl(g)
     n_e = n_e_MP(p)
     q = n_e * electron_charge
     print("A grey value of {} indicates {:.2f}PSL implying {} electrons at {:.2e} Coulombs".format(g,p,int(n_e),q))
 
 def plot_MP():
+    """
+    A function for plotting the response curves for the image plate
+
+    """
     G = np.linspace(0,(2**16)-1,2**8, endpoint=True)
     Q = [psl(g)[2] for g in G]
     plt.plot(Q,G)
@@ -56,7 +88,20 @@ def plot_MP():
     plt.xlabel("Charge / Coulomb")
     plt.ylabel("25um pixel Grey Value")
 
-def adjust_MP_image(file,plot=True,crop = [[0,0],[-1,-1]]):
+def adjust_MP_image(file,crop = [[0,0],[-1,-1]]):
+    """
+    A function for converting and plotting an image plate image
+
+    Parameters
+    ----------
+    file : string  path to image file
+    crop : a 2d slice to crop the image 
+    
+    Returns
+    -------
+    electron_count : float  the number of electrons incident on the pixel
+
+    """
     plate_g = np.array(Image.open(file), np.float32)[crop[0][1]:crop[1][1],crop[0][0]:crop[1][0]]
 
     plate_q = np.multiply(n_e_MP(psl(plate_g)),electron_charge)
@@ -71,15 +116,37 @@ def adjust_MP_image(file,plot=True,crop = [[0,0],[-1,-1]]):
     fig.colorbar(im_q, label = "Charge /C")
     fig.show()
 
-def integrate_lanex(folder = "", include = [0,-1], percentile = 50, background = "", plot = True, kernel = [[1]], saveas = ""):
-    h = 900
-    l = 1200
-    src = [[0,0],[0,1288],[964,1288],[964,0]]
-    dst_flat = [[0,0],[0,l],[h,l],[h,0]]
+
+def integrate_lanex(folder = "", include = [0,-1], percentile = 50, background = None, plot = True, kernel = [[1]], saveas = ""):
+    """
+    Background subtract and integraate labex images for the given folder
+
+    NB. currently the xray filters and perspective transformation are hard coded in the function as I was not altering them run to run 
+
+    Parameters
+    ----------
+    folder : string  the folder containing the images to be integrated
+    include : tuple (2 array) the slice to take from the image list
+    percentile : int 0 < N < 100 the median cutoff for noise suppression
+    background: string the file to take as a background for the run
+    plot : bool weather or not to plot the result with mpl
+    Kernel : 2d array kernel for the convolution filter
+    saveas : string the name to save the resulting tiff as
+
+    Returns
+    -------
+    total_signal : 2darray the resulting image as a numpy array 
+
+    """
+    h = 900 # output heigth
+    l = 1200 # output width
+    src = [[0,0],[0,1288],[964,1288],[964,0]] # source coordinates for the perspective transformation
+    dst_flat = [[0,0],[0,l],[h,l],[h,0]]      # destination coordinates for the perspective transformation
     files = backfilt.walkDir(folder)[include[0]:include[1]]
     outFile = folder + "\\OUTPUT\\total_signal{}.tiff".format(saveas)
 
-    lanex_filters = [3,5,3]
+    lanex_filters = [3,5,3] # the size of the sliding window xray filters to apply
+
     tot = len(files)
     if background is not None:
         bkg_dat = im_dat = np.array(Image.open(background))
@@ -124,6 +191,12 @@ def integrate_lanex(folder = "", include = [0,-1], percentile = 50, background =
     return(total_signal)
 
 def transform_and_scale_image(source_image, target_image):
+    ##### 
+    # 
+    #   Unused I was attempting to overplot the imageplate and lanex images but this is incomplete
+    # 
+    #####
+
     # Load images
     source = cv2.imread(source_image)
     target = cv2.imread(target_image)
@@ -156,11 +229,14 @@ def transform_and_scale_image(source_image, target_image):
 
 
 if __name__ == "__main__":
+    # plot the image plate scan as charge:
+    #adjust_MP_image("C:\\Users\\willo\\Documents\\BunkerC\\Charge_Calibrations\\20230502-chargeCal_run003_25um_l5_500PMT-[Phosphor].tif", crop = [[6000,700],[14000,4700]])
+    
+    # integrate lanex images:
     n = 0
     m = -1
     for p in [20,40,60,80]:
         print("{} : ".format(p))
-        #adjust_MP_image("C:\\Users\\willo\\Documents\\BunkerC\\Charge_Calibrations\\20230502-chargeCal_run003_25um_l5_500PMT-[Phosphor].tif", crop = [[6000,700],[14000,4700]])
         integrate_lanex("C:\\Users\\willo\\Documents\BunkerC\\Charge_Calibrations\\Run003\\", 
                         include = [n,n+m], 
                         percentile = p, 
