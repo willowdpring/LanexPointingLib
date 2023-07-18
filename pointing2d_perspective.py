@@ -125,6 +125,58 @@ def TransformToThetaPhi(pixelData, src, dst, weighted = True):
 
     return (out_im, axis)
 
+def TransformToLanexPlane(pixelData, src, dst, weighted = True):
+    """
+    generates a perspective transformation from known points and applys it to the image
+
+    Parameters
+    ----------
+    pixelData : 2d array
+        the image data
+    src : np.array[,float32]
+        source points in pixel coordinates
+    dst : np.array[,float32]
+        destination points in theta, phi
+
+    Returns
+    -------
+    out_im : 2d array
+        the warped image data
+    axis : tuple(float,float)
+        the pixel coordinates of the axis given this transformation
+    """
+
+    assert len(src) == 4
+    assert len(dst) == 4
+
+    ## padding around the output points:
+
+    lpad = 0
+    tpad = 0
+    rpad = 0
+    bpad = 0
+
+    dst_l = max(dst[:, 0]) - min(dst[:, 0])
+    dst_h = max(dst[:, 1]) - min(dst[:, 1])
+
+    dstmin = [min(dst[:, 0])-lpad*dst_l, min(dst[:, 1])-tpad*dst_h]
+    
+    dst = np.float32([[d[0] - dstmin[0], d[1] - dstmin[1]] for d in dst])
+
+    dstmax = np.array([max(dst[:, 0]) + rpad*dst_l, max(dst[:, 1]) + dst_h * bpad], int)
+    
+    axis = np.float32([0 - dstmin[0], 0 - dstmin[1]])
+
+    warp_transform, weights = getTransform(pixelData.shape,src,dst)
+
+    pixelData = np.multiply(pixelData,weights)
+
+    if settings.verbose: print("Transforming Image")
+    out_im = warpPerspective(pixelData, warp_transform, (dstmax[0], dstmax[1]))
+    if settings.verbose: print("Done")
+
+    return (out_im, axis)
+
 
 def GenerateWeightArray(pixelDataShape, warp_transform, plotting = False):
     """
@@ -562,6 +614,125 @@ def check_transformation(pixelData,
         settings.blockingPlot = True
 
     return(fig,ax)
+
+def check_lanex_transformation(pixelData,
+                         src,
+                         dst,
+                         units,
+                         resolution,
+                         saveDir=None):
+    """
+    a function for checking the transformation generated from the known points by plotting the transformed image 
+
+    Parameters
+    ----------
+    pixelData : str 
+        the absolute path to the calibration image to be tested
+    src: np.array([int,int])
+        src points in pixel value, start top right, clockwise 
+    dst: np.array([t,p])
+        destination points in theta phi
+    units: int
+        units/radian (typically 1000)
+    resolution: int
+        pixels/unit (typically 10)
+    save_dir: str
+        absolute path to saving directory or None if not saving
+    
+    Returns
+    ----------
+    fig : mpl Figure
+    ax : mpl Axis Array
+
+    """
+    
+    dst = np.multiply(dst, resolution)
+
+    if settings.verbose: print("checking transformation")
+    transformed, axis = TransformToLanexPlane(pixelData,
+                                            np.array(src, np.float32),
+                                            np.array(dst, np.float32))
+
+    fig, ax = plt.subplots(2, 1, figsize=(8, 12))
+
+
+    x_tick_every = 10
+    y_tick_every = 10
+
+    xticks = []
+    xlabels = []
+    for i in range(transformed.shape[1]):
+        if abs(np.floor(i - axis[0])) % (x_tick_every * resolution) == 0:
+            xticks.append(i)
+            lab = int(np.floor(((i - axis[0]) / resolution)))
+            labtext = "{}".format(lab) if not (lab == -10 or lab == 0) else ""
+            xlabels.append(labtext)
+
+    yticks = []
+    ylabels = []
+
+    for i in range(transformed.shape[0]):
+        if abs(np.floor(i - axis[1])) % (y_tick_every * resolution) == 0:
+            lab = int(np.floor(((i - axis[1]) / resolution)))
+            labtext = "{}".format(-lab) if not lab == 10 else ""
+            ylabels.append(labtext)
+            yticks.append(i)
+
+
+    raw_on = 0
+    ax[raw_on].imshow(pixelData)
+    ax[raw_on].set_title("Raw Data")
+
+
+    warp_on = 1
+    ax[warp_on].imshow(transformed)
+    ax[warp_on].set_title("Transformed to Lanex Plane")
+    #ax[warp_on].spines['left'].set_position(('data', axis[0]))
+    #ax[warp_on].spines['bottom'].set_position(('data', axis[1] + 1))
+    ax[warp_on].set_xticks(xticks, labels=xlabels, rotation=90)
+    ax[warp_on].set_yticks(yticks, labels=ylabels) # , rotation=0)
+
+    for label in ax[warp_on].yaxis.get_ticklabels():
+        if label.get_text() == "0":
+            dx = 0
+            dy = -0.15
+            offset = trans.ScaledTranslation(dx, dy, fig.dpi_scale_trans)
+            label.set_transform(label.get_transform() + offset)
+
+    ax[warp_on].set_xlabel(r'$x \quad m^{{{}}}$'.format(
+        int(np.log10(units))))
+
+    ax[warp_on].set_ylabel(r'$y \quad m^{{{}}}$'.format(
+        int(np.log10(units))))
+
+    z_xticks = []
+    z_xlabels = []
+    for i in range(transformed.shape[1]):
+        if abs(np.floor(i - axis[0])) % (x_tick_every * (resolution / 2)) == 0:
+            lab = int(np.floor(((i - axis[0]) / (resolution))))
+            labtext = "{}".format(lab) if not (lab == -5 or lab == 0) else ""
+            z_xlabels.append(labtext)
+            z_xticks.append(i)
+
+    z_yticks = []
+    z_ylabels = []
+
+    for i in range(transformed.shape[0]):
+        if abs(np.floor(i - axis[1])) % (y_tick_every * (resolution / 2)) == 0:
+            lab = int(np.floor(((i - axis[1]) / (resolution))))
+            labtext = "{}".format(-lab) if not lab == 5 else ""
+            z_ylabels.append(labtext)
+            z_yticks.append(i)
+
+    if saveDir is not None:
+        saveplot = "{}\\transformation".format(saveDir)
+        fig.savefig(saveplot)
+    else:        
+        fig.show()
+        settings.blockingPlot = True
+
+    return(fig,ax)
+
 
 if __name__ == "__main__":
     src, dst = src_dst_from_known_points(settings.known_points, 

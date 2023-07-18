@@ -181,7 +181,7 @@ def filterImage(image_data, f):
 
 def walkDir(targetDir,
             select_strings=['.tiff', '.tif'],
-            ignore_strings=['BACKGROUND']):
+            ignore_strings=['BACKGROUND','OUTPUT']):
     """
     walkes the directory tree of targetdir and lists all the files containing select_strings but not ignore_strings
 
@@ -324,6 +324,6 @@ def generateAndPlotBackgrounds(
 
 
 if __name__ == "__main__":
-#    background_dir = settings.background_dir
-#    generateAndPlotBackgrounds(background_dir)
-    print(walkDir("C:\\Users\\BunkerC-User\\Documents\\WigglerSpectrometer\\2023\\20230419\\rundelay_test_120_prescale15",ignore_strings=['shutter']))
+    background_dir = settings.background_dir
+    generateAndPlotBackgrounds(background_dir,save = False, plot = True)
+#    print(walkDir("C:\\Users\\BunkerC-User\\Documents\\WigglerSpectrometer\\2023\\20230419\\rundelay_test_120_prescale15",ignore_strings=['shutter']))

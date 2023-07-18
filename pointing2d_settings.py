@@ -11,7 +11,7 @@ import os
 
 """ The first settings are for the target directory, the script will try to analyse every *.tiff* and *.tif* file in this directory and subdirectorys;
 """
-verbose = True # [bool] this will toggle printouts in many functions, set to True to enabe logging to terminal and assist debugging 
+verbose = False #True # [bool] this will toggle printouts in many functions, set to True to enabe logging to terminal and assist debugging 
 
 targetDir = "C:\\Users\\BunkerC-User\\Documents\\Data\\electronPointing_03.23\\Run003"  #[str] the target root directory saves will go in ./EXPORTED
 #targetDir = "C:/Users/willo/Documents/BunkerC/Dec 05/Pointing Lanex/Run004"  #[str] the target root directory saves will go in ./EXPORTED

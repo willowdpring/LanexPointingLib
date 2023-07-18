@@ -18,7 +18,6 @@ import pointing2d_perspective as perspective
 import pointing2d_fit as fit
 from pointing2d_fit import lm_double_gaus2d # Ineeded for loading models from file 
 import lmfit as lm
-
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from matplotlib import rc
@@ -427,6 +426,23 @@ def generate_report(stats, exportDir):
         else:
             fig[0].draw()
             settings.blockingPlot = True
+
+def save_u16_to_tiff(u16in, size, tiff_filename):
+    """
+    ## https://blog.itsayellow.com/technical/saving-16-bit-tiff-images-with-pillow-in-python/# ##
+     
+    Since Pillow has poor support for 16-bit TIFF, we make our own
+    save function to properly save a 16-bit TIFF.
+    """
+    # write 16-bit TIFF image
+
+    # PIL interprets mode 'I;16' as "uint16, little-endian"
+    img_out = PIL.Image.new('I;16', size)
+
+    outpil = u16in.astype(u16in.dtype.newbyteorder("<")).tobytes()
+    
+    img_out.frombytes(outpil)
+    img_out.save(tiff_filename)
 
 if __name__ == "__main__":
     print("this is not the main file")

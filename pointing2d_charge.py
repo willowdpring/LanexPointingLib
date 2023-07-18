@@ -6,7 +6,7 @@ from pylab import figure, cm
 from matplotlib.colors import LogNorm
 from scipy.signal import convolve
 import pointing2d_settings as settings
-from pointing2d_lib import get_background 
+from pointing2d_lib import get_background, save_u16_to_tiff
 import pointing2d_backfiltlib as backfilt
 import pointing2d_perspective as perspective
 from scipy.constants import e as electron_charge
@@ -17,6 +17,9 @@ from PIL import Image
 
 ########################################################################
 #   Calibration, is done by comparison to a BAS_MP Phosphoir image plate
+#   
+#    At the moment the final comparisson is done manually (with a layer capeable image processor) 
+#    as visual feedback is key to linging up the two images
 #    
 #    References: 
 #       [1] doi:10.1063/1.3531979 
@@ -116,8 +119,19 @@ def adjust_MP_image(file,crop = [[0,0],[-1,-1]]):
     fig.colorbar(im_q, label = "Charge /C")
     fig.show()
 
-
-def integrate_lanex(folder = "", include = [0,-1], percentile = 50, background = None, plot = True, kernel = [[1]], saveas = ""):
+def integrate_lanex(folder = "", 
+                    include = [0,-1], 
+                    lanex_filters = [1],
+                    percentile = 50, 
+                    bkg_percentile = 50,
+                    background = None, 
+                    plot = True, 
+                    doTransform = False, 
+                    src = [], 
+                    dst = [], 
+                    kernel = [[1]], 
+                    save_each = False,
+                    saveas = ""):
     """
     Background subtract and integraate labex images for the given folder
 
@@ -125,124 +139,187 @@ def integrate_lanex(folder = "", include = [0,-1], percentile = 50, background =
 
     Parameters
     ----------
-    folder : string  the folder containing the images to be integrated
-    include : tuple (2 array) the slice to take from the image list
-    percentile : int 0 < N < 100 the median cutoff for noise suppression
-    background: string the file to take as a background for the run
-    plot : bool weather or not to plot the result with mpl
-    Kernel : 2d array kernel for the convolution filter
-    saveas : string the name to save the resulting tiff as
+    folder : string  
+        the folder containing the images to be integrated
+    include : tuple (2 array) 
+        the slice to take from the image list
+    lanex_filters : array of [3 | 5 | 53] 
+        xray filters
+    percentile : int 0 < N < 100 
+        the median cutoff for noise suppression
+    percentile : int 0 < N < 100 
+        the median cutoff for background signal to be considered
+    background: string 
+        the file to take as a background for the run
+    plot : bool 
+        weather or not to plot the result with mpl
+    doTransform : bool 
+        transform images with src dst
+    src : np.array[,float32]
+        source points in pixel coordinates
+    dst : np.array[,float32]
+        destination points in theta, phi
+    Kernel : 2d array 
+        kernel for the convolution filter
+    save_each : bool 
+        if True each lanex image will also be saved
+    saveas : string 
+        the name to save the resulting tiff as
 
     Returns
     -------
     total_signal : 2darray the resulting image as a numpy array 
 
     """
-    h = 900 # output heigth
-    l = 1200 # output width
-    src = [[0,0],[0,1288],[964,1288],[964,0]] # source coordinates for the perspective transformation
-    dst_flat = [[0,0],[0,l],[h,l],[h,0]]      # destination coordinates for the perspective transformation
-    files = backfilt.walkDir(folder)[include[0]:include[1]]
-    outFile = folder + "\\OUTPUT\\total_signal{}.tiff".format(saveas)
 
-    lanex_filters = [3,5,3] # the size of the sliding window xray filters to apply
+    files = backfilt.walkDir(folder)[include[0]:include[1]]
+    exportDir = folder + "\\OUTPUT"
+    outFile = exportDir + "\\total_signal{}.tiff".format(saveas)
+    if not os.path.exists(exportDir):  # check if it exists
+        os.mkdir(exportDir)  # create it if not
+    if save_each:
+        if not os.path.exists(exportDir + "//individuals_{}".format(saveas)):  # check if it exists
+            os.mkdir(exportDir + "//individuals_{}".format(saveas))  # create it if not
 
     tot = len(files)
     if background is not None:
-        bkg_dat = im_dat = np.array(Image.open(background))
+        bkg_dat = np.array(Image.open(background))
+
         for f in lanex_filters:
             bkg_dat = backfilt.filterImage(bkg_dat, f)
-        
-        bkg_transformed, axis = perspective.TransformToLanexPlane(bkg_dat,
-                                            np.array(src, np.float32),
-                                            np.array(dst_flat, np.float32))
-        bkg_smoothed = convolve(bkg_transformed, kernel, mode='same')
-
-    total_signal = np.zeros((h,l),dtype=np.float64)
+    else:
+        bkg_dat = np.zeros_like(np.array(Image.open(files[0])))
+    
+    bkg_smoothed = convolve(bkg_dat, kernel, mode='same')
+    
+    if doTransform:
+        bkg_trans, _ = perspective.TransformToLanexPlane(bkg_smoothed,
+                                        np.array(src, np.float32),
+                                        np.array(dst, np.float32))
+    
+    bkg_cutoff = np.percentile(bkg_trans, bkg_percentile)
+    bkg_trans = np.subtract(np.clip(bkg_trans, bkg_cutoff, np.inf), bkg_cutoff)
+    
+    total_signal = np.zeros_like(bkg_trans)
 
     for i in tqdm(range(tot)):
         image = files[i]
         im_dat = np.array(Image.open(image))
+        
         for f in lanex_filters:
             im_dat = backfilt.filterImage(im_dat, f)
-        im_transformed, _ = perspective.TransformToLanexPlane(im_dat,
+        
+        im_smoothed = convolve(im_dat, kernel, mode='same')
+
+        if doTransform:
+            im_trans, _ = perspective.TransformToLanexPlane(im_smoothed,
                                             np.array(src, np.float32),
-                                            np.array(dst_flat, np.float32))
-        im_smoothed = convolve(im_transformed, kernel, mode='same')
-        im_smoothed = np.clip(im_smoothed-np.percentile(im_smoothed,percentile),0,np.inf)
+                                            np.array(dst, np.float32))
+        
+        im_trans = np.clip(im_trans-np.percentile(im_trans,percentile),0,np.inf)
         
         if background is not None:
-            total_signal += np.clip(np.subtract(im_smoothed, bkg_smoothed),0,np.inf)
+            processed = np.clip(np.subtract(im_trans, bkg_trans),0,np.inf)
         else:
-            total_signal += np.clip(im_smoothed,0,np.inf)
+            processed = im_trans
 
+        total_signal += processed
+
+        if save_each:
+            save_u16_to_tiff(np.uint16(processed),processed.shape[::-1],exportDir + "//individuals_{}".format(saveas)+"//PROC_{}".format(image.split("\\")[-1]))
 
     print(total_signal.min(), total_signal.max())
 
     if plot:
         fig, ax = plt.subplots()
-        im = ax.imshow(total_signal)
+        im = ax.imshow(total_signal, extent = [0,270,0,100])
         cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
         fig.colorbar(im, cax=cbar_ax)
         fig.show()
 
-    o_im = Image.fromarray(np.uint16(total_signal))
-    o_im.save(outFile,'TIFF')
+    save_u16_to_tiff(np.uint16(total_signal),total_signal.shape[::-1],exportDir + "//{}.tiff".format(saveas))
     return(total_signal)
 
-def transform_and_scale_image(source_image, target_image):
-    ##### 
-    # 
-    #   Unused I was attempting to overplot the imageplate and lanex images but this is incomplete
-    # 
-    #####
-
-    # Load images
-    source = cv2.imread(source_image)
-    target = cv2.imread(target_image)
-
-    # Find keypoints and descriptors
-    orb = cv2.ORB_create()
-    kp1, des1 = orb.detectAndCompute(source, None)
-    kp2, des2 = orb.detectAndCompute(target, None)
-
-    # Match keypoints
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-    matches = bf.match(des1, des2)
-    matches = sorted(matches, key=lambda x: x.distance)
-
-    # Find corresponding keypoints
-    src_pts = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
-    dst_pts = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
-
-    # Calculate homography matrix
-    M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-
-    # Warp source image to match target image
-    transformed = cv2.warpPerspective(source, M, (target.shape[1], target.shape[0]))
-
-    # Scale the transformed image to fit the target image
-    scale_ratio = target.shape[1] / transformed.shape[1]
-    scaled_transformed = cv2.resize(transformed, None, fx=scale_ratio, fy=scale_ratio)
-
-    return scaled_transformed
+def clean_image_plate(file, crop=[[0,-1],[0,-1]]):
+    im_dat = np.array(Image.open(file))[crop[0][0]:crop[0][1],crop[1][0]:crop[1][1]]
+    im_dat = im_dat[:,::-1] 
+    fig,ax = plt.subplot_mosaic([['orig','slope'],
+                                 ['signal','signal']])
+    ax['orig'].imshow(im_dat,interpolation='none')
+    ax['orig'].set_title("image plate (cropped)")
+    slope = np.mean(im_dat[20:80,:],0)
+    ax['slope'].plot(slope)
+    ax['slope'].set_title("side electron slope")
+    ax['slope'].grid('both')
+    im_dat_subbed = im_dat
+    im_dat += 10000
+    for i, row in enumerate(im_dat):
+        im_dat_subbed[i] = np.clip(np.subtract(row,slope),0,np.inf)
+    im_dat_cropped = im_dat_subbed[1200:-1000,500:7500]
+    ax['signal'].imshow(im_dat_cropped,interpolation='none')
+    ax['signal'].set_title("Remaining Signal")
+    fig.tight_layout()
+    fig.show()
+    if 'y' in input("save tiff? ...").lower():
+        save_u16_to_tiff(np.uint16(im_dat_cropped),im_dat_cropped.shape[::-1], file.split(".")[0] + "_processed.tiff")
 
 
 if __name__ == "__main__":
     # plot the image plate scan as charge:
-    #adjust_MP_image("C:\\Users\\willo\\Documents\\BunkerC\\Charge_Calibrations\\20230502-chargeCal_run003_25um_l5_500PMT-[Phosphor].tif", crop = [[6000,700],[14000,4700]])
+    # adjust_MP_image("C:\\Users\\willo\\Documents\\BunkerC\\Charge_Calibrations\\20230502-chargeCal_run003_25um_l5_500PMT-[Phosphor].tif", crop = [[6000,700],[14000,4700]])
     
     # integrate lanex images:
+
+    #backfilt.generateAndPlotBackgrounds("C:\\Users\\willo\\Documents\BunkerC\\Charge_Calibrations\\230707\\Lanex_ChargeCal\\BACKGROUND\\")
+
+    clean_image_plate("C:\\Users\\willo\\Documents\BunkerC\\Charge_Calibrations\\230707\\20230707-chargeCal_run001_25um_l5_500PMT-[Phosphor].tif",
+                      crop = [[3000,-1],[0,8000]])
+
+    #input("Done?...")
+
+    #    h = 900 # output heigth
+    #    l = 1200 # output width
+    """
+    l=1288
+    h=822
+
+    cc_src = [[20,63],[74,824],[1212,822],[1260,101]]   # source coordinates for the perspective transformation
+    cc_dst = [[-260,0],[-250,100],[-30,100],[-10,0]]    # destination coordinates for the perspective transformation
+                    
     n = 0
     m = -1
-    for p in [20,40,60,80]:
-        print("{} : ".format(p))
-        integrate_lanex("C:\\Users\\willo\\Documents\BunkerC\\Charge_Calibrations\\Run003\\", 
-                        include = [n,n+m], 
+    p_b = 10
+
+    kx = 15
+    ky = 7
+
+    res = 20
+
+    test_data = np.array(Image.open("C:\\Users\\willo\\Documents\BunkerC\\Charge_Calibrations\\230707\\Lanex_ChargeCal\\test\\Espec_calibration2_Marked.tiff"))
+    fig,ax = perspective.check_lanex_transformation(test_data,
+                         cc_src,
+                         cc_dst,
+                         units=0.001,
+                         resolution=res,
+                         saveDir=None)
+
+    cc_dst = np.multiply(cc_dst,res)
+
+    for p in [0,20,40,60,80]:
+        integrate_lanex("C:\\Users\\willo\\Documents\BunkerC\\Charge_Calibrations\\230707\\Lanex_ChargeCal\\Good_Shots\\", 
+                        include = [n,m], 
+                        lanex_filters = [3,3,5,5,53,53,5,5,3,3], # the size of the sliding window xray filters to apply
                         percentile = p, 
-                        background = None, # "C:\\Users\\willo\\Documents\BunkerC\\Charge_Calibrations\\Run003\\BACKGROUND\\AVG_BG.tiff",
-                        kernel = backfilt.norm_gaus2d_ary(7, 3, 7, 3),
-                        saveas = "_low_filt_cutoff_{}".format(p)
+                        bkg_percentile = p_b,
+                        background = "C:\\Users\\willo\\Documents\BunkerC\\Charge_Calibrations\\230707\\Lanex_ChargeCal\\BACKGROUND\\EXPORTED\\AVG_BAK.tiff",
+                        doTransform = True,
+                        src = cc_src,
+                        dst = cc_dst,
+                        kernel = backfilt.norm_gaus2d_ary(kx, 3, ky, 3),
+                        save_each = True,
+                        saveas = "av_bkg_cutoff_{}_Kernel_[{},{}]".format(p,kx,ky)
                         )
+    
     input("Done?...")
 
+    """
