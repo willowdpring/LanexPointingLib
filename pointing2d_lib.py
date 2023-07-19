@@ -427,13 +427,20 @@ def generate_report(stats, exportDir):
             fig[0].draw()
             settings.blockingPlot = True
 
-def save_u16_to_tiff(u16in, size, tiff_filename):
+def save_u16_to_tiff(imDatIn, size, tiff_filename, norm = True):
     """
     ## https://blog.itsayellow.com/technical/saving-16-bit-tiff-images-with-pillow-in-python/# ##
      
     Since Pillow has poor support for 16-bit TIFF, we make our own
     save function to properly save a 16-bit TIFF.
     """
+    # IF NORMALISING, RESCALE IMAE TO FILL 16 BIT 
+
+    if norm:
+        imDatIn = (imDatIn/imDatIn.max()) * (2**16 - 1)
+
+    u16in = np.uint16(imDatIn)
+
     # write 16-bit TIFF image
 
     # PIL interprets mode 'I;16' as "uint16, little-endian"

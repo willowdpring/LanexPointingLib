@@ -11,7 +11,7 @@ import pointing2d_backfiltlib as backfilt
 import pointing2d_perspective as perspective
 from scipy.constants import e as electron_charge
 from tqdm import tqdm
-import cv2
+#import cv2
 from PIL import Image
 
 
@@ -241,41 +241,70 @@ def integrate_lanex(folder = "",
     return(total_signal)
 
 def clean_image_plate(file, crop=[[0,-1],[0,-1]]):
-    im_dat = np.array(Image.open(file))[crop[0][0]:crop[0][1],crop[1][0]:crop[1][1]]
+    im_dat = np.array(Image.open(file),dtype = np.float64)[crop[0][0]:crop[0][1],crop[1][0]:crop[1][1]]
     im_dat = im_dat[:,::-1] 
     fig,ax = plt.subplot_mosaic([['orig','slope'],
                                  ['signal','signal']])
     ax['orig'].imshow(im_dat,interpolation='none')
     ax['orig'].set_title("image plate (cropped)")
-    slope = np.mean(im_dat[20:80,:],0)
-    ax['slope'].plot(slope)
-    ax['slope'].set_title("side electron slope")
+    
+    slope_g = np.mean(im_dat[20:80,:],0)
+    slope_psl = psl(slope_g)
+    slope_n_e = n_e_MP(slope_psl)
+
+    ax['slope'].plot(slope_n_e)
+    ax['slope'].set_yscale('log')
+    ax['slope'].set_title("side electron slope (e- / px)")
     ax['slope'].grid('both')
-    im_dat_subbed = im_dat
-    im_dat += 10000
-    for i, row in enumerate(im_dat):
-        im_dat_subbed[i] = np.clip(np.subtract(row,slope),0,np.inf)
-    im_dat_cropped = im_dat_subbed[1200:-1000,500:7500]
-    ax['signal'].imshow(im_dat_cropped,interpolation='none')
-    ax['signal'].set_title("Remaining Signal")
+    
+    im_dat_psl = psl(im_dat)
+    im_dat_n_e = n_e_MP(im_dat_psl)
+    # im_dat_q = im_dat_n_e * electron_charge
+
+    im_dat_subbed = np.ones_like(im_dat)
+    for i, row in enumerate(im_dat_n_e):
+        for j, q in enumerate(row):
+            im_dat_subbed[i,j] = q - (0.9 * slope_n_e[j])
+
+    im_dat_cropped = np.multiply(np.clip(im_dat_subbed[1200:-1000,500:7500],0.01,np.inf),electron_charge)
+    sigIm = ax['signal'].imshow(im_dat_cropped,norm=LogNorm(),interpolation='none')
+    ax['signal'].set_title("total Signal (q /px)")
+    cax1 = fig.colorbar(sigIm,
+                                        ax=ax['signal'],
+                                        pad=0,
+                                        shrink=1,
+                                        location='right')
     fig.tight_layout()
     fig.show()
+
+    fig2, ax2 = plt.subplots()
+    fullIm = ax2.imshow(im_dat_cropped,norm=LogNorm(),interpolation='none')
+    ax2.set_title("total Signal (q /px)")
+    cax1 = fig.colorbar(fullIm,
+                                        ax=ax2,
+                                        pad=0,
+                                        shrink=1,
+                                        location='right')
+    
+    fig2.show()
+
     if 'y' in input("save tiff? ...").lower():
-        save_u16_to_tiff(np.uint16(im_dat_cropped),im_dat_cropped.shape[::-1], file.split(".")[0] + "_processed.tiff")
+        save_u16_to_tiff(im_dat_cropped,im_dat_cropped.shape[::-1], file.split(".")[0] + "_processed.tiff",norm=True)
 
 
 if __name__ == "__main__":
     # plot the image plate scan as charge:
     # adjust_MP_image("C:\\Users\\willo\\Documents\\BunkerC\\Charge_Calibrations\\20230502-chargeCal_run003_25um_l5_500PMT-[Phosphor].tif", crop = [[6000,700],[14000,4700]])
-    
+
+    clean_image_plate("C:\\Users\\willo\\OneDrive\\Documents\\ChargeCalibration\\charge_cal\\230707\\20230707-chargeCal_run001_25um_l5_500PMT-[Phosphor].tif",
+                      crop = [[3000,-1],[0,8000]])
+
+    #input("Done?...")
+
     # integrate lanex images:
 
     #backfilt.generateAndPlotBackgrounds("C:\\Users\\willo\\Documents\BunkerC\\Charge_Calibrations\\230707\\Lanex_ChargeCal\\BACKGROUND\\")
 
-    clean_image_plate("C:\\Users\\willo\\Documents\BunkerC\\Charge_Calibrations\\230707\\20230707-chargeCal_run001_25um_l5_500PMT-[Phosphor].tif",
-                      crop = [[3000,-1],[0,8000]])
-
-    #input("Done?...")
 
     #    h = 900 # output heigth
     #    l = 1200 # output width
