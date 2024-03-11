@@ -11,9 +11,7 @@ import csv
 folder = "D:\\Bunker C\\Lanex\\E_Spec_test_data\\042023_2a\\synced_with_spectrometer\\"
 files = walkDir(folder)
 
-saving = True
-
-
+saving = False
 
 exportDir = "{}\\EXPORTED".format(folder)  # name the subdirectory to export to
 if saving and not os.path.exists(exportDir):  # check if it exists
@@ -55,29 +53,51 @@ def ratio_of_quads(x,a,b,c,d,e):
 
 
 
-bin = 2
+bin = 1
 
 l_m = -0.18287037037037038
 l_c = 240.49305555555554
 
-analyse = [
-    [files[8],[[0,250],[800,450]]],
-    [files[22],[[0,250],[800,450]]],
-    [files[23],[[0,470],[800,670]]],
-    [files[24],[[0,250],[800,450]]],
-    [files[26],[[0,370],[800,570]]],
-    [files[28],[[0,450],[800,650]]],
-    [files[29],[[0,450],[800,650]]]
-]
+"""analyse = {
+    files[8]:[[10,250],[800,450]],
+    files[22]:[[10,250],[800,450]],
+    files[23]:[[10,470],[800,670]],
+    files[24]:[[10,250],[800,450]],
+    files[26]:[[10,370],[800,570]],
+    files[28]:[[10,450],[800,650]],
+    files[29]:[[10,450],[800,650]]
+}"""
+
+analyse = {
+"D:/Bunker C/Lanex/E_Spec_test_data/042023_2a/synced_with_spectrometer/espec_r2-04202023153428-177.tiff": [[182, 238], [712, 534]],
+"D:/Bunker C/Lanex/E_Spec_test_data/042023_2a/synced_with_spectrometer/espec_r2-04202023153635-298.tiff": [[7, 349], [543, 647]],
+"D:/Bunker C/Lanex/E_Spec_test_data/042023_2a/synced_with_spectrometer/espec_r2-04202023153802-385.tiff": [[200, 260], [741, 533]],
+"D:/Bunker C/Lanex/E_Spec_test_data/042023_2a/synced_with_spectrometer/espec_r2-04202023154252-675.tiff": [[40, 505], [522, 743]],
+"D:/Bunker C/Lanex/E_Spec_test_data/042023_2a/synced_with_spectrometer/espec_r2-04202023154536-832.tiff": [[85, 307], [593, 655]],
+"D:/Bunker C/Lanex/E_Spec_test_data/042023_2a/synced_with_spectrometer/espec_r2-04202023154642-898.tiff": [[78, 207], [691, 583]],
+"D:/Bunker C/Lanex/E_Spec_test_data/042023_2a/synced_with_spectrometer/espec_r2-04202023154648-904.tiff": [[127, 449], [539, 659]],
+"D:/Bunker C/Lanex/E_Spec_test_data/042023_2a/synced_with_spectrometer/espec_r2-04202023154654-910.tiff": [[124, 229], [704, 572]],
+"D:/Bunker C/Lanex/E_Spec_test_data/042023_2a/synced_with_spectrometer/espec_r2-04202023154754-970.tiff": [[82, 377], [570, 619]],
+"D:/Bunker C/Lanex/E_Spec_test_data/042023_2a/synced_with_spectrometer/espec_r2-04202023154909-1045.tiff": [[191, 428], [683, 723]],
+"D:/Bunker C/Lanex/E_Spec_test_data/042023_2a/synced_with_spectrometer/espec_r2-04202023155100-1156.tiff": [[100, 434], [640, 756]]
+}
+
 
 fmodel = fit.setup_double_2d_gauss_model()
 
-for file, crop in analyse:
+for file in analyse.keys():
+    crop = analyse[file]
+
+    print(f"cropping {file.split('/')[-1]}  to \n x  [{crop[0][0]}   to  {crop[1][0]}] \n y  [{crop[0][1]}   to  {crop[1][1]}]")
+
     x_px = np.linspace(crop[0][0],crop[1][0],1+crop[1][0]-crop[0][0],endpoint=True)[::bin]
-    e_x = ratio_of_quads(l_m*x_px+l_c,a,b,c,d,e)
+    #e_x = ratio_of_quads(l_m*x_px+l_c,a,b,c,d,e)
     name = file[:-5].split('\\')[-1]
 
     shot = np.array(Image.open(file))[crop[0][1]:crop[1][1],crop[0][0]:crop[1][0]]
+
+    print(shot.shape)
+
     back = np.array(Image.open(Background))[crop[0][1]:crop[1][1],crop[0][0]:crop[1][0]]
     n,m = shot.shape
     if bin !=1:
@@ -100,7 +120,6 @@ for file, crop in analyse:
     sub = sub - np.percentile(sub,threshold)
     sub = np.clip(sub,0,sub.max())
 
-
     x = range(m)
     y = range(n)
 
@@ -122,7 +141,8 @@ for file, crop in analyse:
                         linewidths=0.8)
     ax[0].set_yticks([])
     ax[1].plot(sub.sum(0))
-    labs = ["{:.0f}".format(e_x[int(loc)]) for loc in ax[0].get_xticks()] # ratio_of_quads(((crop[0][0]+loc)),a,b,c,d,e)) for loc in ax.get_xticks()]
+    #print(ax[0].get_xticks())
+    labs = ["{:.0f}".format(ratio_of_quads(((l_m*(crop[0][0]+loc)+l_c)),a,b,c,d,e)) for loc in ax[0].get_xticks()] #e_x[int(loc)]) for loc in ax[0].get_xticks()] # 
     ax[1].set_xticklabels(labs)
     ax[1].grid('both','both')
     ax[1].set_xlabel("Energy in MeV")
@@ -143,4 +163,6 @@ for file, crop in analyse:
         
     else:
         fig.show()
-        input("done?")
+        
+if not saving:
+    input("done?")
