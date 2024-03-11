@@ -44,7 +44,7 @@ def ratio_of_quads(x,a,b,c,d,e):
 # espec calibration lookup
 # { 'DAY' : [a,b,c,d,e] }
 espec_coeffs = {
-    '22-12-05' : [11.5, 24170, 32519703, -2880, 2150460], ## ???? im doubtful of this calibration
+    '22-12-05' : [19.5487,58230.3,7.48844e7,-3014.01,2.38075e6],# [11.5, 24170, 32519703, -2880, 2150460], ## ???? im doubtful of this calibration
     '23-03-23' :[16.82203932056203,44381.734282360354,50860414.825793914,-2919.0964588725824,2204294.821475454],
     '23-03-24' :[16.82203932056203,44381.734282360354,50860414.825793914,-2919.0964588725824,2204294.821475454],
     '23-04-20' :[9.2080820556058758,35563.53137486182,4.48789354385e7,-2933.2162484668197,2281787.5593547565],
@@ -86,9 +86,15 @@ for file in analyse.keys():
 
     print(f"cropping {file.split('/')[-1]}  to \n x  [{crop[0][0]}   to  {crop[1][0]}] \n y  [{crop[0][1]}   to  {crop[1][1]}]")
 
-    x_px = np.linspace(crop[0][0],crop[1][0],1+crop[1][0]-crop[0][0],endpoint=True)[::bin]
+    x_px = np.linspace(crop[0][0],crop[1][0],crop[1][0]-crop[0][0],endpoint=True)[::bin]
 
     e_x = ratio_of_quads(x_px,a,b,c,d,e)
+    """  
+    fig_c,ax_c = plt.subplots(1,1)
+    ax_c.plot(x_px,e_x)
+    fig_c.show()
+    input("cont...")
+    """
     name = file[:-5].split('\\')[-1]
 
     shot = np.array(Image.open(file))[crop[0][1]:crop[1][1],crop[0][0]:crop[1][0]]
@@ -125,23 +131,23 @@ for file in analyse.keys():
     result = fit.fit_double_gauss2d_lm(x2, y2, sub, fmodel)
     fitted = fmodel.func(x2, y2, **result.best_values)
 
-    fig,ax = plt.subplots(2,1,sharex=True,tight_layout = True)
+    fig,ax = plt.subplots(2,1,sharex=True,tight_layout = True,figsize = (9,12), height_ratios = [n/m,0.6])
     fig.suptitle(name)
-    ax[0].imshow(sub, vmin = 0, vmax = sub.max())
+    ax[0].imshow(sub, vmin = 0, vmax = sub.max())#,extent = (e_x[0],e_x[-1],sub.shape[1],0))
     if plotfit:
         ax[0].contour(x,
                         y,
                         fitted,
                         2,
                         colors='black',
-                        extent=(0, n, 0, m),
+                        extent= (0,n,0,m),#(e_x[0],e_x[-1],0,sub.shape[1]),
                         linewidths=0.8)
     ax[0].set_yticks([])
     ax[1].plot(sub.sum(0))
-    #print(ax[0].get_xticks())
-    labs = ["{:.0f}".format(e_x[int(loc)-crop[0][0]]) for loc in ax[0].get_xticks()] # ratio_of_quads(((l_m*(crop[0][0]+loc)+l_c)),a,b,c,d,e)) for loc in ax[0].get_xticks()]
-    ax[1].set_xticklabels(labs)
     ax[1].grid('both','both')
+    labs = ["{:.2f}".format(e_x[i]) for i in range(0,m,50)]
+    locs = [i for i in range(0,m,50)]
+    ax[1].set_xticks(locs,labs)
     ax[1].set_xlabel("Energy in MeV")
     ax[1].set_ylabel("Charge (arb. units)")
     ax[0].set_title("total charge (arb. units) = {:.1e}".format(sub.sum(1).sum(0)))
