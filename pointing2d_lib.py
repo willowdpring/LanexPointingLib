@@ -451,5 +451,56 @@ def save_u16_to_tiff(imDatIn, size, tiff_filename, norm = True):
     img_out.frombytes(outpil)
     img_out.save(tiff_filename)
 
+def points_to_roi(points,w,h,x_pad=150,y_pad=100):
+    if len(points.items())==0:
+        raise ValueError("Expects dict of points (int,int,bool) (x,y,good/bad) ")
+
+    x_min = y_min = 10000
+    x_max = y_max = 0
+
+    for [lab,[x,y,good]] in points.items():
+        #x = point[1][0]
+        #y = point[1][1]
+        #good = point[1][2]
+        x_min = max(min(x_min,(x-(1.5*x_pad) if good else x-(3*x_pad))),0) # extra low E padding 
+        x_max = min(max(x_max,(x+x_pad if good else x+(2*x_pad))),w)
+        y_min = max(min(y_min,(y-y_pad if good else y-(2*y_pad))),0)
+        y_max = min(max(y_max,(y+y_pad if good else y+(2*y_pad))),h)
+
+    return([[x_min,y_min],[x_max,y_max]])
+
+def load_points_from_file(filepath):
+    points_dict = {}
+    # Read the contents of the file
+    with open(filepath, "r") as file:
+        # Skip the header
+        header_skipped = False
+        for line in file:
+            # Remove leading and trailing whitespace, including newline characters
+            line = line.strip()
+            if not header_skipped:
+                if line == "points_dict = {":
+                    header_skipped = True
+                continue
+            
+            # Check if the line is not empty
+            if line and line != "}":
+                # Split the line into key and value using ":" as delimiter
+                try:
+                    key, value = line.split(": {")
+                except ValueError as e:
+                    raise ValueError("file contains line \n\t" + line.split(": {")) from e
+                # Remove leading and trailing whitespace from key and value
+                key = key.strip("'")
+                value = '{' + value
+                value = eval(value.strip())
+                # Add key-value pair to the dictionary
+                points_dict[key] = value
+            elif line == "}":
+                # End of the dictionary
+                break
+    return points_dict
+
+
 if __name__ == "__main__":
     print("this is not the main file")
