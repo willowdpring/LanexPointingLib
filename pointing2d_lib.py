@@ -469,7 +469,7 @@ def points_to_roi(points,w,h,x_pad=150,y_pad=100):
 
     return([[x_min,y_min],[x_max,y_max]])
 
-def load_points_from_file(filepath):
+def load_dict_from_file(filepath):
     points_dict = {}
     # Read the contents of the file
     with open(filepath, "r") as file:
@@ -479,7 +479,7 @@ def load_points_from_file(filepath):
             # Remove leading and trailing whitespace, including newline characters
             line = line.strip()
             if not header_skipped:
-                if line == "points_dict = {":
+                if line.endswith(" = {"):
                     header_skipped = True
                 continue
             
@@ -487,12 +487,13 @@ def load_points_from_file(filepath):
             if line and line != "}":
                 # Split the line into key and value using ":" as delimiter
                 try:
-                    key, value = line.split(": {")
+                    lineparts = line.split(":")
+                    key = ":".join(lineparts[0:2]) # C:/path 
+                    value = ":".join(lineparts[2:])
                 except ValueError as e:
-                    raise ValueError("file contains line \n\t" + line.split(": {")) from e
+                    raise ValueError("file contains line \n\t" + line) from e
                 # Remove leading and trailing whitespace from key and value
                 key = key.strip("'")
-                value = '{' + value
                 value = eval(value.strip())
                 # Add key-value pair to the dictionary
                 points_dict[key] = value
