@@ -4,7 +4,7 @@ Created on Thu Dec 15 15:21:22 2022
 
 @author: willo
 
-A generic library of supporting functions for __main__
+A generic library of supporting functions for pointing 2d
 
 """
 import numpy as np

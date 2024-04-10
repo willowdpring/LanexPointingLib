@@ -9,11 +9,12 @@ import os
 import pointing2d_fit as fit
 import csv
 from tqdm import tqdm
+from pointing2d_datlog import Logger
 
 import diplib as dip
 
 points_file = rois_file = None
-#"""
+"""
 folder = "D:/Bunker C/Undulator_Masters_Project/DATA" 
 Background = f"{folder}/BACKGROUND-03232023140207-4.tiff" 
 days = ['23-03-23',
@@ -79,10 +80,8 @@ if plotfit:
         plotfit = False
 
 for day in days:
-
     if saving and not os.path.exists(f"{folder}/EXPORTED/"):  # check if it exists
         os.mkdir(f"{folder}/EXPORTED/")  # create it if not
-
 
     print(f"{day} : ")    
         
@@ -97,15 +96,18 @@ for day in days:
         day_keys = [f for f in list(analyse.keys()) if daystr in f and analyse[f] is not None]
     
     for i, file in enumerate(tqdm(day_keys)):
-
+        flog = Logger()
         run = file.split('_')[-1].split('-')[0]   
     
-        exportDir = f"{folder}/EXPORTED/{day}/{run}"  # name the subdirectory to export to
+        if day == '22-12-05':
+            exportDir = f"{folder}/EXPORTED/"  # name the subdirectory to export to
+        else:
+            exportDir = f"{folder}/EXPORTED/20{day.replace('-','')}/{run}"  # name the subdirectory to export to
         if saving and not os.path.exists(exportDir):  # check if it exists
             os.mkdir(exportDir)  # create it if not
 
         name = file[:-5].split('\\')[-1].split('/')[-1]
-
+        
         saveplot = "{}\\{}_plot.png".format(exportDir, name.split("\\")[-1].split("/")[-1].split('.')[0])
 
         if saving and os.path.exists(saveplot):
@@ -117,10 +119,15 @@ for day in days:
         padding = 50
 
         crop = analyse[file]
+
+        flog.log_variable('Region of Interest',crop)
         
         x_px = np.linspace(crop[0][0],crop[1][0]+padding,crop[1][0]+padding-crop[0][0],endpoint=True)[::bin]
         
         e_x = ratio_of_quads(x_px,a,b,c,d,e)
+
+        flog.log_variable_to_category('x_axis','pixel',x_px)
+        flog.log_variable_to_category('x_axis','MeV',e_x)
 
         full = np.array(Image.open(file))
         full_back = np.array(Image.open(Background))
@@ -143,7 +150,9 @@ for day in days:
         
         smothed_shot = dip.Gauss(pad_sig, sigmas=kernel_sigmas[::-1])
         smothed_back = dip.Gauss(pad_back,sigmas=kernel_sigmas[::-1])
-            
+
+        flog.log_variable('Gaussian Blur Sigma',kernel_sigmas[::-1])
+
         sub = np.subtract(smothed_shot, smothed_back)
         sub = sub - sub.min()
 
@@ -151,8 +160,13 @@ for day in days:
             win_len = 31
             ord = 3
             v_slice = savgol_filter(np.mean(sub[:,-padding:-1],1),win_len,ord)
+
+            flog.log_variable('Vertical background slice',v_slice)
+
             sub = sub - v_slice[:,np.newaxis]   
         sub = sub[:-padding,:-padding]
+        
+        flog.log_variable('Background Subtracted Image',sub)
 
         c_h,c_w = sub.shape
 
@@ -166,6 +180,9 @@ for day in days:
 
             result = fit.fit_double_gauss2d_lm(x2, y2, sub, fmodel)
             fitted = fmodel.func(x2, y2, **result.best_values)
+            flog.log_variable_to_category('fitting','Fit Report',result.fit_report())
+
+            flog.log_variable_to_category('fitting','2d Gaussian Fit',fitted)
 
     
         fig,ax = plt.subplot_mosaic([['im','hb'],['vb','.']], 
@@ -197,6 +214,8 @@ for day in days:
 
         ssum = sub.sum(0)
         hsum = sub.sum(1)
+        flog.log_variable('Full Vertical Bin',ssum)
+        flog.log_variable('Full Horizontal Bin',hsum)
 
         ax['hb'].plot(hsum,range(y1,y2),'b')
         ax['hb'].set_ylabel('Pixel')
@@ -217,15 +236,15 @@ for day in days:
         
         fig.tight_layout()
         peaks.append(e_x[np.argmax(ssum)])
-        
+
+        flog.log_variable('X Pixel of peak',x_px[np.argmax(ssum)])
+        flog.log_variable('Energy at peak',e_x[np.argmax(ssum)])
+
         if saving:
-            savefile = "{}\\{}_lineout.csv".format(exportDir, name.split("\\")[-1].split("/")[-1].split('.')[0])
+            savefile = "{}\\{}_data.json".format(exportDir, name.split("\\")[-1].split("/")[-1].split('.')[0])
+            flog.save_to_file(savefile)
+
             fig.savefig(saveplot,dpi=600)
-            with open(savefile, 'w', encoding='UTF8') as f:
-                writer = csv.writer(f)
-                writer.writerow(["E","Q"])
-                for i, q in enumerate(sub.sum(0)):
-                    writer.writerow([ratio_of_quads((((crop[0][0]+i))),a,b,c,d,e),q])
 
             plt.close(fig)  
             
