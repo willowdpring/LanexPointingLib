@@ -11,29 +11,29 @@ import os
 
 """ The first settings are for the target directory, the script will try to analyse every *.tiff* and *.tif* file in this directory and subdirectorys;
 """
-verbose = False #True # [bool] this will toggle printouts in many functions, set to True to enabe logging to terminal and assist debugging 
+verbose = True #True # [bool] this will toggle printouts in many functions, set to True to enabe logging to terminal and assist debugging 
 
-targetDir = "C:\\Users\\BunkerC-User\\Documents\\Data\\electronPointing_03.23\\Run003"  #[str] the target root directory saves will go in ./EXPORTED
-#targetDir = "C:/Users/willo/Documents/BunkerC/Dec 05/Pointing Lanex/Run004"  #[str] the target root directory saves will go in ./EXPORTED
+#targetDir = "C:\\Users\\BunkerC-User\\Documents\\Data\\electronPointing_03.23\\Run003"  #[str] the target root directory saves will go in ./EXPORTED
+targetDir = "C:\\Users\\willo\\Documents\\Baris_Lanex" # "C:/Users/willo/Documents/BunkerC/Dec 05/Pointing Lanex/Run004"  #[str] the target root directory saves will go in ./EXPORTED
 
 start = 0  # [int] the first file to analyse
 
-stop = -1 # [int] the last file to analyse -1 for all
+stop = 1 # [int] the last file to analyse -1 for all
 
 decimate = 1  # [int] the step size
 
-saving = True  # [bool] if True we will save the numpy arrays and png's of the resulting contor plots?
+saving = False  # [bool] if True we will save the numpy arrays and png's of the resulting contor plots?
 
-overwrite = True  # [bool] if True we will overwrite existing save data (in the ./EXPORTED/ directory on a file by file basis)
+overwrite = False  # [bool] if True we will overwrite existing save data (in the ./EXPORTED/ directory on a file by file basis)
 
 """ Backgrounds are generated from user selected files in a seperate directory 
     by compressing all the tiff files in that directory along z using a max() and a mean() method  
 """
 background_dir = "{}\\BACKGROUND".format(targetDir)  # [str] the directory to generate
 
-generate_background_files = True  # [bool] if True we will generate /EXPORTED/MAX_BAK.tiff and /EXPORTED/AVG_BAK.tiff in the background folder
+generate_background_files = False # True  # [bool] if True we will generate /EXPORTED/MAX_BAK.tiff and /EXPORTED/AVG_BAK.tiff in the background folder
 
-background = "{}\\EXPORTED\\AVG_BAK.tiff".format(background_dir)  # [str] the file to use as a background
+background = None # "{}\\EXPORTED\\AVG_BAK.tiff".format(background_dir)  # [str] the file to use as a background
 
 background_clip = 1  # [int] the percentile below which the background data is ignored
 
@@ -60,17 +60,18 @@ ignore_ptvs_below = 30  # the peak to mean value ratio above which the image is 
     [theta, phi] coordinates can be used if the toggle is set to true 
 
 """
-units = 1000  # /radian
+units = 1000  # units/radian
 
 resolution = 10  # pixels/unit
 
-zoom_radius = 50  # the radius of the analysis box
+zoom_radius = 8  # the radius of the analysis box
 
-pointingCalibrationImage = "C:\\Users\\BunkerC-User\\Documents\\LanexPointingTEST\\230220\\Lanex_in.tiff"
-#pointingCalibrationImage = "C:/Users/willo/Documents/BunkerC/LanexBeamProfile/HighE_LanexIN.tiff"
+#pointingCalibrationImage = "C:\\Users\\BunkerC-User\\Documents\\LanexPointingTEST\\230220\\Lanex_in.tiff"
+pointingCalibrationImage = "C:\\Users\\willo\\Documents\\Baris_Lanex\\light-reference.tiff "# "C:/Users/willo/Documents/BunkerC/LanexBeamProfile/HighE_LanexIN.tiff"
 
-dh = 10  # a nudge to vertical offset of the lanex in mm
-dx = 12  # a nudge to horizontal offset of the lanex in mm
+dh = 0  # a nudge to vertical offset of the lanex in mm
+dx = 1.5  # a nudge to horizontal offset of the lanex in mm
+
 
 
 """
@@ -85,33 +86,45 @@ laser:   theta  \
 
 # measurements are taken in horizontal plane of the laser and the heights of the top and bottom corners of the lanex are calculated 
 
-lanex_onAx_dist = 1150 # [float] mm distance to the lanex plane in the axis of the laser
+lanex_onAx_dist = 1000 # 1150 # [float] mm distance to the lanex plane in the axis of the laser
 
-lanex_theta = 45 # [float] deg angle of the normal of the lanex plane to the laser  
+lanex_theta = 0 # 45 # [float] deg angle of the normal of the lanex plane to the laser  
                  # WARN: this assumes that the lanex plane is vertical and only rotates about z
 
-lanex_inPlane_dist = -50 # [float] mm distance of the edge of the lanex (0mm ruler mark) 
+lanex_inPlane_dist = 0 # -50 # [float] mm distance of the edge of the lanex (0mm ruler mark) 
                          # from the axis in the plane of the lanex -ve implies that the laser axes intersects the lanex
                                          
-lanex_height = 180 # [float] mm height of the lanex screen
+lanex_height = 50 # 180 # [float] mm height of the lanex screen
 
-lanex_vertical_offset = -10 # [float] mm height of the center plane of the lanex from the plane of the laser 
+lanex_vertical_offset = 0 # [float] mm height of the center plane of the lanex from the plane of the laser 
 
 # Known points is a dict of four lanex corners as keys 
 # and 3 element arrays as entries: [mm Mark on ruler, pixel X coord, pixel Y coord]
 # these are for Feb \\230220\\Lanex_in.tiff
+"""
 known_points = {'TR': [0,1180,130],  # TR - Top Right 
                 'BL': [280,213,942], # BL - Bottom Left
                 'BR': [0,1159,877],  # BR - Bottom right
                 'TL': [290,95,79]    # TL - Top Left
                 }
-"""
+
 # these are for December \\
 known_points = {'TR': [0,891, 91],  # TR - Top Right 
                 'BL': [160,346, 950], # BL - Bottom Left
                 'BR': [0,873, 882],  # BR - Bottom right
                 'TL': [230,25,23]    # TL - Top Left
                 }
+
+"""
+
+known_points = [
+                [[129.500,187.500], [79.000,176.000], [61.500,343.000], [129.500,281.000]],
+                [[20.705,17.029],[13.406,14.304], [9.381,22.318], [20.015,22.058]]
+                ]
+
+"""
+
+(Px,PY) -> (Lx,Ly)
 
 [
     #[ [P_X, P_Y] , [X,Y,Z], 'note']
@@ -121,6 +134,7 @@ known_points = {'TR': [0,891, 91],  # TR - Top Right
     [[346, 950], [-90.38 + dx, 91 + dh, 1182.38], "bottom left - 16cm along"]
 ]
 """
+
 transformation = None # this is a placeholder for a variable that will contain the transformation and normalisation matricies
 
 in_theta_phi = False  # [bool] if True the known points are given in spherical coords (without radius)
