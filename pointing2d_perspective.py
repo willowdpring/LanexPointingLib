@@ -35,7 +35,6 @@ def ceil2(num):
     """
     return(np.pow(np.ceil(np.log2(num)),2))
 
-
 def getTransform(pixelDataShape,src,dst):
     """
     generates or loads a perspective transformation from known points
@@ -77,8 +76,7 @@ def getTransform(pixelDataShape,src,dst):
         if settings.verbose: print("Done")
     return warp_transform, weights 
 
-
-def TransformToThetaPhi(pixelData, src, dst, weighted = True):
+def TransformToThetaPhi(pixelData, src, dst, zoom=5, weighted = True):
     """
     generates a perspective transformation from known points and applys it to the image
 
@@ -104,10 +102,10 @@ def TransformToThetaPhi(pixelData, src, dst, weighted = True):
 
     ## padding around the output points:
 
-    lpad = 1.01
-    tpad = 1.01
-    rpad = 1.2
-    bpad = 0.92
+    lpad = 1+0.1*zoom
+    tpad = 1+0.1*zoom
+    rpad = 1+0.1*zoom
+    bpad = 1+0.1*zoom
 
     dstmin = [tpad * min(dst[:, 0]), lpad * min(dst[:, 1])]
     dst = np.float32([[d[0] - dstmin[0], d[1] - dstmin[1]] for d in dst])
@@ -120,7 +118,7 @@ def TransformToThetaPhi(pixelData, src, dst, weighted = True):
     pixelData = np.multiply(pixelData,weights)
 
     if settings.verbose: print("Transforming Image")
-    out_im = warpPerspective(pixelData, warp_transform, (dstmax[1], dstmax[0]))
+    out_im = warpPerspective(pixelData, warp_transform, (dstmax[0], dstmax[1]))
     if settings.verbose: print("Done")
 
     return (out_im, axis)
@@ -177,7 +175,6 @@ def TransformToLanexPlane(pixelData, src, dst, weighted = True):
 
     return (out_im, axis)
 
-
 def GenerateWeightArray(pixelDataShape, warp_transform, plotting = False):
     """
     Generates an that contains a weight value for each pixel of the input image to preserve integrals after the perspective warp
@@ -233,7 +230,6 @@ def GenerateWeightArray(pixelDataShape, warp_transform, plotting = False):
     surf_interpolator = bisplrep(px, py, samples)
     weights = bisplev(full_x, full_y, surf_interpolator)
 
-
     fymesh, fxmesh = np.meshgrid(full_y, full_x)
 
     if plotting:
@@ -245,7 +241,7 @@ def GenerateWeightArray(pixelDataShape, warp_transform, plotting = False):
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.set_zlabel("Integration Weight")
-        fig.draw()
+        fig.show()
         settings.blockingPlot = True
 
     return weights
@@ -337,8 +333,13 @@ def src_dst_from_known_points(known_points, units, resolution,lanex_onAx_dist, l
 
     Parameters
     ----------
-    known_points : dict [int,int,int]
-        A 4 element dict with each corner eg 'TR' being a list of [rulermark,p_x,p_y]
+    known_points :
+        tuple(list[4](tuple)) ie [[[px1,py1], ...][[Lx1,Ly1], ...] with lanex coords in mm from center
+        the pixel src and lanex dst in mm to be converted to theta phi
+      OR
+        dict [int,int,int]
+            A 4 element dict with each corner eg 'TR' being a list of [rulermark,p_x,p_y]
+
     units: int
         units/radian (typically 1000)
     resolution: int
@@ -363,6 +364,77 @@ def src_dst_from_known_points(known_points, units, resolution,lanex_onAx_dist, l
     dst : np.array[,float32]
         list of destination points in theta phi [rad/units]
 
+    """
+    if len(known_points) == 2 and len(known_points[0]) == 4:
+        if settings.verbose:
+            print("pixel and mm coordinates provided in full:")
+        return known_points_from_PX_LX(known_points, units, resolution,lanex_onAx_dist, lanex_theta, lanex_inPlane_dist, lanex_height, lanex_vertical_offset)
+    else:
+        if settings.verbose:
+            print("assuming ruler marks on lanex, height determined by settings.lanex_height ")
+        return known_points_from_ruler_marks(known_points, units, resolution,lanex_onAx_dist, lanex_theta, lanex_inPlane_dist, lanex_height, lanex_vertical_offset)
+    
+def known_points_from_PX_LX(known_points, units, resolution,lanex_onAx_dist, lanex_theta, lanex_inPlane_dist, lanex_height, lanex_vertical_offset):
+    """
+    generates src, dst arrays for the perspective transform
+
+    Parameters
+    ----------
+    see src_dst_from_known_points
+    """
+    src = []
+    dst = []
+
+    cosT = np.cos(np.radians(lanex_theta))
+    sinT = np.sin(np.radians(lanex_theta))
+
+    centroid = np.mean(known_points[1], axis=0)-[settings.dx,settings.dh]
+    
+    # Step 2: Calculate the angle of each point relative to the centroid
+    def angle_from_centroid(point):
+        # Subtract the centroid to translate the points
+        dx = point[0] - centroid[0]
+        dy = point[1] - centroid[1]
+        # Return the angle of the point relative to the x-axis
+        return np.arctan2(dy, dx)
+    
+    angles = [angle_from_centroid(px) for px in known_points[1]]
+    sorted_indices = np.argsort(angles)
+
+    # Step 3: Sort points based on the angle
+    sorted_px = [known_points[0][i] for i in sorted_indices]
+    sorted_lx = [np.subtract(known_points[1][i],centroid) for i in sorted_indices]
+
+    for i, PX in enumerate(sorted_px):
+        LX = sorted_lx[i]
+        if settings.verbose:
+            print("mapping {} to {}".format(PX, LX))
+        src.append(PX)
+
+        x = - cosT * (lanex_inPlane_dist + LX[0])
+        z = lanex_onAx_dist - sinT * (lanex_inPlane_dist + LX[0])
+
+        y = LX[1]
+
+        r, p, t = cart2sph(z,x,y)
+
+        if settings.verbose:
+            print("x:{}, y:{}, z:{}".format(x,y,z))
+            print("r:{}, theta:{}, phi:{}".format(r,t,p))
+        dst.append([units * resolution * t, units * resolution * p])
+
+    if settings.verbose:
+        print("src: {}\ndst: {}".format(src,dst))
+
+    return(np.array(src), np.array(dst))
+
+def known_points_from_ruler_marks(known_points, units, resolution,lanex_onAx_dist, lanex_theta, lanex_inPlane_dist, lanex_height, lanex_vertical_offset):
+    """
+    generates src, dst arrays for the perspective transform
+
+    Parameters
+    ----------
+    see src_dst_from_known_points
     """
     if settings.verbose:
         print("Generating transformation coords from known points: ")
@@ -452,6 +524,7 @@ def check_integration(pixelData,
 
     if not settings.saving:
         settings.blockingPlot = True
+        fig.show()
 
 def check_transformation(pixelData,
                          src,
@@ -486,12 +559,13 @@ def check_transformation(pixelData,
     ax : mpl Axis Array
 
     """
+
     if settings.verbose: print("checking transformation")
     transformed, axis = TransformToThetaPhi(pixelData,
                                             np.array(src, np.float32),
                                             np.array(dst, np.float32))
 
-    fig, ax = plt.subplots(1, 3, figsize=(18, 8))
+    fig, ax = plt.subplots(1, 3, figsize=(18, 8), width_ratios = (1.8,2,1.4))
 
     x_tick_every = 10
     y_tick_every = 10
@@ -578,8 +652,19 @@ def check_transformation(pixelData,
     roi = transformed[zoom_x_lims[0]:zoom_x_lims[1],
                       zoom_y_lims[1]:zoom_y_lims[0]]
 
-    ax[zoom_on].imshow(transformed, vmin=roi.min(),
-                       vmax=roi.max())  #, extent=[*zoom_x_lims,*zoom_y_lims])
+    try: 
+        dvmin = roi.min()
+    except:
+        dvmin = None
+    
+    try: 
+        dvmax = roi.max()
+    except:
+        dvmax = None
+    
+
+    ax[zoom_on].imshow(transformed, vmin=dvmin,
+                       vmax=dvmax)  #, extent=[*zoom_x_lims,*zoom_y_lims])
     ax[zoom_on].autoscale(False)
     ax[zoom_on].set_title(r"Zoomed to ${{{}}}rad^{{{}}}$".format(
         zoom_radius, int(-np.log10(units))))
@@ -610,7 +695,7 @@ def check_transformation(pixelData,
         saveplot = "{}\\transformation".format(saveDir)
         fig.savefig(saveplot)
     else:        
-        fig.draw()
+        fig.show()
         settings.blockingPlot = True
 
     return(fig,ax)
@@ -654,7 +739,6 @@ def check_lanex_transformation(pixelData,
                                             np.array(dst, np.float32))
 
     fig, ax = plt.subplots(2, 1, figsize=(8, 12))
-
 
     x_tick_every = 10
     y_tick_every = 10
@@ -726,7 +810,8 @@ def check_lanex_transformation(pixelData,
 
     if saveDir is not None:
         saveplot = "{}\\transformation".format(saveDir)
-        fig.savefig(saveplot)
+        fig.savefig(saveplot,dpi = 600)
+
     else:        
         fig.show()
         settings.blockingPlot = True
@@ -745,7 +830,7 @@ if __name__ == "__main__":
                                          settings.lanex_vertical_offset)
     
     pixelData = np.array(PIL.Image.open(settings.pointingCalibrationImage))
-
+    
     check_transformation(pixelData,
                          src,
                          dst,
@@ -761,6 +846,12 @@ if __name__ == "__main__":
                          settings.resolution,
                          settings.zoom_radius,
                          saveDir=None)
+
+
+    warp_transform, weights = getTransform(pixelData.shape,src,dst)
+
+    GenerateWeightArray(pixelData.shape, warp_transform, plotting = True)
+
 
     if settings.blockingPlot:
             input("press RETURN key to continue ...")  # this is here to stop plots from closing immediatly if you are not saving them

@@ -303,8 +303,11 @@ def generate_report(stats, exportDir):
                                                  wspace=0.05,
                                                  hspace=0.05)
 
+    report_figures[-1][0].set_size_inches(9,9)
+    
     nbins = int(max(len(stats) / 10, 10))
-    pAx = report_figures[-1][0].add_subplot(gs_hist[1, 0], )
+    pAx = report_figures[-1][0].add_subplot(gs_hist[1, 0], )    
+    
     pAx.minorticks_on()
     uux = np.mean(u_x)
     uuy = np.mean(u_y)
@@ -327,6 +330,9 @@ def generate_report(stats, exportDir):
     pax_histx = report_figures[-1][0].add_subplot(gs_hist[0, 0], sharex=pAx)
     pax_histy = report_figures[-1][0].add_subplot(gs_hist[1, 1], sharey=pAx)
 
+    pax_text =  report_figures[-1][0].add_subplot(gs_hist[0, 1])
+    pax_text.axis('off')  # Turn off axis for the text subplot
+
 
     pax_histx.axes.get_xaxis().set_visible(False)
     pax_histy.axes.get_yaxis().set_visible(False)
@@ -347,16 +353,22 @@ def generate_report(stats, exportDir):
 
     xmin, xmax = pax_histx.get_xlim()
     ymin, ymax = pax_histy.get_ylim()
+
     x = np.linspace(xmin, xmax, 100)
     y = np.linspace(ymin, ymax, 100)
+
     px = norm.pdf(x, 0, sx)
     py = norm.pdf(y, 0, sy)
 
     pax_histx.plot(x, px, 'k', linewidth=2)
     pax_histy.plot(py, y, 'k', linewidth=2)
 
-    xlab = "x location [/mRad]\n $\\mu_x$ = {:.2f},  $\\sigma_x$ = {:.2f}".format(uux,sx)
-    ylab = "y location [/mRad]\n $\\mu_y$ = {:.2f},  $\\sigma_y$ = {:.2f}".format(uuy,sy)
+    xlab = r"$\theta_x$ [mRad]"
+    ylab = r"$\theta_y$ [mRad]"
+
+    rep_str = "$\\mu_x$ = {:.2f},\n$\\sigma_x$ = {:.2f}\n\n$\\mu_y$ = {:.2f},\n$\\sigma_y$ = {:.2f}".format(uux,sx,uuy,sy)
+    pax_text.text(0.1, 0.6, rep_str, fontsize=10, verticalalignment='top', family='monospace')
+
     pAx.set_xlabel(xlab)
     pAx.set_ylabel(ylab)
     report_figures[-1][0].set_tight_layout(True)
@@ -375,14 +387,19 @@ def generate_report(stats, exportDir):
     th_ax = report_figures[-1][0].add_subplot(313)
     report_figures[-1][0].suptitle("Analysis of the Bunch Sizes")
     report_figures[-1][0].set_tight_layout(True)
+
+
     maj_ax.hist(s_x, nbins)
-    maj_ax.set_xlabel("Major axis size (sigma) [/mRad] mean:{:.2f}  s.d.:{:.2f}".format(
-        s_x.mean(), np.sqrt(s_x.var())))
+    mxaxlab = "$\sigma_{major}$"+"[mRad] mean:{:.2f}  s.d.:{:.2f}".format(s_x.mean(), np.sqrt(s_x.var()))
+    maj_ax.set_xlabel(mxaxlab)
     min_ax.hist(s_y, nbins)
-    min_ax.set_xlabel("Minor axis size (sigma) [/mRad] mean:{:.2f}  s.d:{:.2f}".format(
-        s_y.mean(), np.sqrt(s_y.var())))
+    minxaxlab = "$\sigma_{minor}$"+"[mRad] mean:{:.2f}  s.d:{:.2f}".format(s_y.mean(), np.sqrt(s_y.var()))
+    min_ax.set_xlabel(minxaxlab)
+
+
+    th = ((th+90)%180)-90 # Center around 0
     th_ax.hist(th, nbins)
-    th_ax.set_xlabel("Theta [/deg] mean:{:.2f}  s.d.:{:.2f}".format(
+    th_ax.set_xlabel("$\phi [^\circ]$ (from x to major axis) mean:{:.2f}  s.d.:{:.2f}".format(
         th.mean(), np.sqrt(th.var())))
 
     ##
@@ -424,7 +441,7 @@ def generate_report(stats, exportDir):
         if settings.saving:
             fig[0].savefig("{}\\{}_fig".format(exportDir, fig[1]))
         else:
-            fig[0].draw()
+            fig[0].show()
             settings.blockingPlot = True
 
 def save_u16_to_tiff(imDatIn, size, tiff_filename, norm = True):
