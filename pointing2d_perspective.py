@@ -17,6 +17,7 @@ import matplotlib.ticker as tick
 from cv2 import getPerspectiveTransform, perspectiveTransform, warpPerspective
 import pointing2d_settings as settings
 import pointing2d_fit as fit
+import pointing2d_lib
 from scipy.interpolate import bisplrep, bisplev
 
 def ceil2(num):
@@ -589,11 +590,9 @@ def check_transformation(pixelData,
             ylabels.append(labtext)
             yticks.append(i)
 
-
     raw_on = 0
     ax[raw_on].imshow(pixelData)
     ax[raw_on].set_title("Raw Data")
-
 
     warp_on = 1
     ax[warp_on].imshow(transformed)
@@ -642,27 +641,20 @@ def check_transformation(pixelData,
     zoom_on = 2
 
     zoom_x_lims = [
-        int(axis[0] - (zoom_radius * resolution)),
-        int(axis[0] + (zoom_radius * resolution))
+        max(int(axis[0] - (zoom_radius * resolution)),0),
+        min(int(axis[0] + (zoom_radius * resolution)),transformed.shape[0])
     ]
     zoom_y_lims = [
-        int(axis[1] + (zoom_radius * resolution)),
-        int(axis[1] - (zoom_radius * resolution))
+        min(int(axis[1] + (zoom_radius * resolution)),transformed.shape[1]),
+        max(int(axis[1] - (zoom_radius * resolution)),0)
     ]
-    roi = transformed[zoom_x_lims[0]:zoom_x_lims[1],
-                      zoom_y_lims[1]:zoom_y_lims[0]]
 
-    try: 
-        dvmin = roi.min()
-    except:
-        dvmin = None
-    
-    try: 
-        dvmax = roi.max()
-    except:
-        dvmax = None
-    
+    dvmin = np.nanmin(transformed)
+    dvmax = np.nanmax(transformed)
 
+    if settings.verbose:
+        print(f"setting zoom colorbar to {dvmin =}, {dvmax =}")
+    
     ax[zoom_on].imshow(transformed, vmin=dvmin,
                        vmax=dvmax)  #, extent=[*zoom_x_lims,*zoom_y_lims])
     ax[zoom_on].autoscale(False)
@@ -819,39 +811,45 @@ def check_lanex_transformation(pixelData,
     return(fig,ax)
 
 
+
+def main(input_deck_path=None): 
+    pointing2d_lib.update_user_settings(input_deck_path=None)
+    
+    if settings.assert_reasonable():
+        src, dst = src_dst_from_known_points(settings.known_points, 
+                                            settings.units,
+                                            settings.resolution,
+                                            settings.lanex_onAx_dist,
+                                            settings.lanex_theta,
+                                            settings.lanex_inPlane_dist,
+                                            settings.lanex_height,
+                                            settings.lanex_vertical_offset)
+        
+        pixelData = np.array(PIL.Image.open(settings.pointingCalibrationImage))
+        
+        check_transformation(pixelData,
+                            src,
+                            dst,
+                            settings.units,
+                            settings.resolution,
+                            settings.zoom_radius,
+                            saveDir=None)
+        
+        check_integration(pixelData,
+                            src,
+                            dst,
+                            settings.units,
+                            settings.resolution,
+                            settings.zoom_radius,
+                            saveDir=None)
+
+        warp_transform, weights = getTransform(pixelData.shape,src,dst)
+
+        GenerateWeightArray(pixelData.shape, warp_transform, plotting = True)
+
+
+        if settings.blockingPlot:
+                input("press RETURN key to continue ...")  # this is here to stop plots from closing immediatly if you are not saving them
+
 if __name__ == "__main__":
-    src, dst = src_dst_from_known_points(settings.known_points, 
-                                         settings.units,
-                                         settings.resolution,
-                                         settings.lanex_onAx_dist,
-                                         settings.lanex_theta,
-                                         settings.lanex_inPlane_dist,
-                                         settings.lanex_height,
-                                         settings.lanex_vertical_offset)
-    
-    pixelData = np.array(PIL.Image.open(settings.pointingCalibrationImage))
-    
-    check_transformation(pixelData,
-                         src,
-                         dst,
-                         settings.units,
-                         settings.resolution,
-                         settings.zoom_radius,
-                         saveDir=None)
-    
-    check_integration(pixelData,
-                         src,
-                         dst,
-                         settings.units,
-                         settings.resolution,
-                         settings.zoom_radius,
-                         saveDir=None)
-
-
-    warp_transform, weights = getTransform(pixelData.shape,src,dst)
-
-    GenerateWeightArray(pixelData.shape, warp_transform, plotting = True)
-
-
-    if settings.blockingPlot:
-            input("press RETURN key to continue ...")  # this is here to stop plots from closing immediatly if you are not saving them
+    main()

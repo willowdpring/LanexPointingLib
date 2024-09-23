@@ -6,6 +6,11 @@ Created on Thu Dec 15 15:21:22 2022
 
 Configuration of the runtime settings for the program e.g. working directories, backgrounds, etc.
 
+
+These are the default settings. 
+Please pass user settings as a json to main
+
+
 """
 import os
 
@@ -13,8 +18,7 @@ import os
 """
 verbose = True #True # [bool] this will toggle printouts in many functions, set to True to enabe logging to terminal and assist debugging 
 
-#targetDir = "C:\\Users\\BunkerC-User\\Documents\\Data\\electronPointing_03.23\\Run003"  #[str] the target root directory saves will go in ./EXPORTED
-targetDir = "C:\\Users\\willo\\Documents\\Baris_Lanex" # "C:/Users/willo/Documents/BunkerC/Dec 05/Pointing Lanex/Run004"  #[str] the target root directory saves will go in ./EXPORTED
+targetDir = "../example/" #[str] the target root directory saves will go in ./EXPORTED
 
 start = 0  # [int] the first file to analyse
 
@@ -73,7 +77,6 @@ dh = 0  # a nudge to vertical offset of the lanex in mm
 dx = 1.5  # a nudge to horizontal offset of the lanex in mm
 
 
-
 """
            Lanex
                \ 
@@ -100,8 +103,8 @@ lanex_vertical_offset = 0 # [float] mm height of the center plane of the lanex f
 
 # Known points is a dict of four lanex corners as keys 
 # and 3 element arrays as entries: [mm Mark on ruler, pixel X coord, pixel Y coord]
-# these are for Feb \\230220\\Lanex_in.tiff
 """
+# these are for Feb \\230220\\Lanex_in.tiff
 known_points = {'TR': [0,1180,130],  # TR - Top Right 
                 'BL': [280,213,942], # BL - Bottom Left
                 'BR': [0,1159,877],  # BR - Bottom right
@@ -135,14 +138,13 @@ known_points = [
 ]
 """
 
-transformation = None # this is a placeholder for a variable that will contain the transformation and normalisation matricies
+transformation = None # this is a placeholder for a variable that will contain the transformation and normalisation matricies during runttime
 
 in_theta_phi = False  # [bool] if True the known points are given in spherical coords (without radius)
 
 checkTransformation = True  # [bool] if True a plot will be generated to check the generated transformation
 
 blockingPlot = False   # [bool] this is here to stop plots from closing immediatly if you are not saving them
-
 
 def assert_reasonable():
     ers = False
@@ -181,7 +183,7 @@ def assert_reasonable():
     if ers == 0:
         return(True)
     else:
-        msg += "please edit pointing2d_settings.py and try again"
+        msg += "please edit the input JSON and try again"
         print(msg)
         return(False)
 

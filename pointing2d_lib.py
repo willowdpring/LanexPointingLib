@@ -8,7 +8,7 @@ A generic library of supporting functions for pointing 2d
 
 """
 import numpy as np
-import os
+import os, sys, json
 import PIL
 from scipy.stats import norm
 from scipy.signal import convolve
@@ -518,6 +518,26 @@ def load_dict_from_file(filepath):
                 # End of the dictionary
                 break
     return points_dict
+
+def update_user_settings(input_deck_path=None):
+    # If no input_deck_path is provided, check sys.argv for it
+    if input_deck_path is None:
+        if len(sys.argv) > 1:
+            input_deck_path = sys.argv[1]
+        else:
+            print("Warning: No input deck file provided, using default settings \n\t(this will probably not apply to your machine as it contains hardcoded paths).")
+            print("Usage: python script.py <input_deck_path>")
+    
+    # Load the input_deck (assuming it's a JSON file for this example)
+    with open(input_deck_path, 'r') as f:
+        input_deck = json.load(f)
+    
+    # Iterate over the input settings and apply them to the settings module
+    for setting_name, setting_value in input_deck.items():
+        if hasattr(settings, setting_name):
+            setattr(settings, setting_name, setting_value)
+        else:
+            print(f"Warning: {setting_name} not found in settings.")
 
 
 if __name__ == "__main__":
