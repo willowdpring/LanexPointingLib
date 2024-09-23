@@ -73,6 +73,34 @@ espec_coeffs = {
     '23-04-28' :[9.280351087922435,26752.558352428678,25734721.443078351683,-2345.4430,1453419.190032153]
 }
 
+
+
+plotcalibs = True
+if plotcalibs:
+    X = np.linspace(1,1000,1000)
+
+    fig,ax = plt.subplots(1,1)
+    for day in espec_coeffs.keys():
+        a,b,c,d,e = espec_coeffs[day]
+        ax.plot(X,ratio_of_quads(X,a,b,c,d,e),label=day)
+    ax.grid("both","both")
+    ax.legend(loc='best')
+
+    ax.set_xlabel("Pixel")
+    ax.set_ylabel("Energy")
+    ax.set_title(f"Espec Calibrations")
+    fig.show()
+
+a,b,c,d,e = espec_coeffs['22-12-05']
+
+bin = 1
+
+analyse = {
+    "D:\\Bunker C\\2022\\Dec 05\\Pointing Lanex\\Run005\\HE\\Run005-12052022164625-530.tiff":[[250,450],[800,750]],
+    "D:\\Bunker C\\2022\\Dec 05\\Pointing Lanex\\Run005\\HE\\Run005-12052022171508-2240.tiff":[[200,450],[650,750]]
+}
+Background = "D:\\Bunker C\\2022\\Dec 05\\Pointing Lanex\\Run005\\HE\\Run005-12052022163736-1.tiff"
+
 fmodel = fit.setup_double_2d_gauss_model()
 
 if plotfit:

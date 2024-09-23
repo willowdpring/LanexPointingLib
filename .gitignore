@@ -1,2 +1,5 @@
 trans_ref.png
 __pycache__
+__pycache__/pointing2d_backfiltlib.cpython-310.pyc
+__pycache__/pointing2d_fit.cpython-310.pyc
+__pycache__/pointing2d_settings.cpython-310.pyc
