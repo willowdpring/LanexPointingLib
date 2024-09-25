@@ -101,7 +101,7 @@ def lm_double_gaus2d(x, y, amplitude_1, offset, xo_1, yo_1, theta_1, sigma_x_1,
         x - xo_2) * (y - yo_2)
     g_2 = amplitude_2 * np.exp(expo_2)
 
-    return (np.sum([offset, g_1, g_2]))
+    return (offset+np.add(g_1, g_2))
 
 
 def gaus(x, a, ux, s, c):
@@ -401,7 +401,7 @@ def setup_2d_gauss_model():
     fmodel : class Model
 
     """
-    fmodel = lm.Model(lm_gaus2d, independent_vars=('x', 'y'))
+    fmodel = lm.Model(lm_gaus2d, independent_vars=('x', 'y'), nan_policy = 'omit')
     # 'amplitude', 'offset', 'xo', 'yo', 'theta', 'sigma_x', 'sigma_y'
     fmodel.set_param_hint('sigma_x', min=0.1, max=5)
     fmodel.set_param_hint('sigma_y', min=0.1, max=5)
@@ -418,7 +418,7 @@ def setup_double_2d_gauss_model():
     fmodel : class Model
 
     """
-    fmodel = lm.Model(lm_double_gaus2d, independent_vars=('x', 'y'))
+    fmodel = lm.Model(lm_double_gaus2d, independent_vars=('x', 'y'), nan_policy = 'omit')
     # x, y, amplitude_1, offset, xo_1, yo_1, theta_1, sigma_x_1, sigma_y_1,
     # amplitude_2, xo_2, yo_2, theta_2, sigma_x_2, sigma_y_2
     fmodel.set_param_hint('sigma_x_1', min=5)

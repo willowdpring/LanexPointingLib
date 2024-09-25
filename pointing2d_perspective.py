@@ -69,7 +69,7 @@ def getTransform(pixelDataShape,src,dst):
         if settings.verbose: print("Done")
 
         if settings.verbose: print("calculating weights ... ", end = '')
-        weights = GenerateWeightArray(pixelDataShape, warp_transform)
+        weights = GenerateWeightArray(pixelDataShape, warp_transform, plotting = settings.verbose)
         if settings.verbose: print("Done")
 
         if settings.verbose: print("Recording to temp ... ", end = '')
@@ -117,6 +117,7 @@ def TransformToThetaPhi(pixelData, src, dst, zoom=5, weighted = True):
     warp_transform, weights = getTransform(pixelData.shape,src,dst)
 
     pixelData = np.multiply(pixelData,weights)
+
 
     if settings.verbose: print("Transforming Image")
     out_im = warpPerspective(pixelData, warp_transform, (dstmax[0], dstmax[1]))

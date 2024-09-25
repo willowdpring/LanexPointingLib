@@ -44,12 +44,12 @@ def main(input_deck_path=None):
                             allow_pickle=True,
                             fix_imports=True)
         else:
-            stats = pointing2d_lib.generate_stats(exportDir, src, dst, backgroundData)   
+            stats = pointing2d_lib.generate_stats(exportDir, src, dst, backgroundData)
 
         report = pointing2d_lib.generate_report(stats, exportDir)
-        if settings.blockingPlot:
-            plt.show()
-            input("close? : ")
+        #if settings.blockingPlot:
+        #    plt.show()
+        #    input("close? : ")
 
 if __name__ == "__main__":
     main()

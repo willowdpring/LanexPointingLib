@@ -21,6 +21,7 @@ import lmfit as lm
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from matplotlib import rc
+from tqdm import tqdm
 
 font = {'family': 'Corbel', 'weight': 'normal', 'size': 14}
 
@@ -52,7 +53,7 @@ def get_background(backgroundPath = None):
         backgroundData = np.clip(backgroundData - noise_scale, 0, np.inf)
 
     else:
-        backgroundData = 0
+        backgroundData = None
     return(backgroundData)
 
 
@@ -81,7 +82,6 @@ def check_calibration_transformation(exportDir, src, dst):
     perspective.check_transformation(pixelData, src, dst, settings.units,
                                      settings.resolution,
                                      settings.zoom_radius, saveDir)
-
 
 def integrate_gausians(x2, y2, result, src, dst):
     """
@@ -129,8 +129,6 @@ def integrate_gausians(x2, y2, result, src, dst):
             integrals.append(gaus[0]*gaus[4]*gaus[5]*np.sqrt(np.pi * 2))
     return(integrals)
 
-
-
 def generate_stats(exportDir, src, dst, backgroundData=None):
     fmodel = fit.setup_double_2d_gauss_model()
 
@@ -140,18 +138,23 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
 
     stats = []
 
-    for file in tifFiles[settings.start:settings.stop:settings.decimate]:
-        name = file[:-5].split('\\')[-1]
+    if settings.verbose: print(f"Found {len(tifFiles)} Tiff Files")
+
+    for file in tqdm(tifFiles[settings.start:settings.stop:settings.decimate]):
+        name = file[:-5].split('\\')[-1].split('/')[-1]
         
         savefile = "{}\\{}_data".format(exportDir, name)
 
         pixelData = np.array(PIL.Image.open(file))
 
+        if settings.verbose: print(f"using {len(settings.filters)} x-ray filters")
         for f in settings.filters:
             pixel_data = backfilt.filterImage(pixelData, f)
-        pixeldata = convolve(pixelData, kernel, mode='same')
+        if settings.verbose: print(f"convolving with {settings.kernel}")
+        pixelData = convolve(pixelData, kernel, mode='same')
 
         if backgroundData is not None:
+            if settings.verbose: print(f"Subtracting Backgrounds")
             if not backgroundData.shape == pixelData.shape:
                 print("Background missmatch")
             else:
@@ -161,7 +164,7 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
                     pixelData,
                     np.multiply(backgroundData, (settings.background_scale * A / B)))
 
-        noise_scale = np.percentile(pixelData[300:-1, 1:-350], 60)
+        noise_scale = np.percentile(pixelData[30:-1, 1:-35], settings.background_clip)
         pixelData = np.clip(pixelData - noise_scale, 0, np.inf)
 
         transformed, axis = perspective.TransformToThetaPhi(
@@ -169,19 +172,19 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
             np.array(dst, np.float32))
 
         zoom_x_lims = [
-            int(axis[1] - (settings.zoom_radius * settings.resolution)),
+            max(0,int(axis[1] - (settings.zoom_radius * settings.resolution))),
             int(axis[1] + (settings.zoom_radius * settings.resolution))
         ]
         zoom_y_lims = [
             int(axis[0] + (settings.zoom_radius * settings.resolution)),
-            int(axis[0] - (settings.zoom_radius * settings.resolution))
+            max(0,int(axis[0] - (settings.zoom_radius * settings.resolution)))
         ]
 
-        roi = np.array(transformed[zoom_x_lims[0]:zoom_x_lims[1],
-                                    zoom_y_lims[1]:zoom_y_lims[0]])
+        roi = np.array(transformed[zoom_x_lims[0]:zoom_x_lims[1],zoom_y_lims[1]:zoom_y_lims[0]])
 
         if settings.plotBackgroundSubtraction:
             roi_pre = roi
+
         for region in settings.ignore_regions:
             try:
                 roi[region[0][0]:region[1][0],
@@ -223,8 +226,7 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
             result = fit.fit_double_gauss2d_lm(x2, y2, roi, fmodel)
 
         else:
-            print("I don't think there are electrons in this image: {}".
-                    format(file))
+            print("I don't think there are electrons in this image: {}".format(file))
             print("max = {}".format(np.max(roi)))
             print("mean = {}".format(np.mean(roi)))
             print("med = {}".format(np.median(roi)))
@@ -279,7 +281,6 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
                 fix_imports=True)
 
     return(stats)
-
 
 def generate_report(stats, exportDir):
     report_figures = []
