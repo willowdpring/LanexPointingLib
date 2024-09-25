@@ -48,6 +48,7 @@ def main(input_deck_path=None):
             stats = pointing2d_lib.generate_stats(exportDir, src, dst, backgroundData)
 
         report = pointing2d_lib.generate_report(stats, exportDir)
+        
         if settings.blockingPlot:
             plt.show()
             input("close? : ")

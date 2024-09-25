@@ -526,13 +526,18 @@ def update_user_settings(input_deck_path=None):
         if len(sys.argv) > 1:
             input_deck_path = sys.argv[1]
         else:
-            print("Warning: No input deck file provided, using default settings \n\t(this will probably not apply to your machine as it contains hardcoded paths).")
-            print("Usage: python script.py <input_deck_path>")
+            print("Warning: No input deck file provided,\nRunning Example Input")
+            print("Usage: python pointing2d_main.py <input_deck_path>")
+            input_deck_path = "./EXAMPLES/LPL_Settings.json"
 
     maindir = os.getcwd()
 
+    input_deck_path = os.path.abspath(input_deck_path)
+
+    print(f"running with {input_deck_path=}")
+
     os.chdir(os.path.dirname(input_deck_path)) # allow for relative paths in input deck
-    
+    print(os.getcwd())
     # Load the input_deck (assuming it's a JSON file for this example)
     with open(input_deck_path, 'r') as f:
         input_deck = json.load(f)
@@ -540,7 +545,11 @@ def update_user_settings(input_deck_path=None):
     # Iterate over the input settings and apply them to the settings module
     for setting_name, setting_value in input_deck.items():
         if hasattr(settings, setting_name):
+            if isinstance(setting_value,str):
+                if setting_value.startswith(".\\"):
+                    setting_value = os.path.abspath(setting_value)
             setattr(settings, setting_name, setting_value)
+
         else:
             print(f"Warning: {setting_name} not found in settings.")
 

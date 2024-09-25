@@ -4,7 +4,7 @@
 
     
     "_comment" : "[str] the target root directory saves will go in ./EXPORTED",
-    "targetDir" : ".\\DATA", 
+    "targetDir" : ".\\DATA\\", 
     
     
     "_comment" :  "[int] the first file to analyse",
@@ -12,7 +12,7 @@
     
     
     "_comment" :  "[int] the last file to analyse -1 for all",
-    "stop" : 10, 
+    "stop" : -1, 
     
     
     "_comment" :  "[int] the step size",
@@ -28,11 +28,11 @@
     
     
     "_comment" :  "[str] the directory to generate",
-    "background_dir" : ".\\DATA\\BACKGROUND",  
+    "background_dir" : ".\\DATA\\BACKGROUND\\",  
     
     
     "_comment" :  "[bool] if True we will generate /EXPORTED/MAX_BAK.tiff and /EXPORTED/AVG_BAK.tiff in the background folder",
-    "generate_background_files" : false,
+    "generate_background_files" : true,
     
     
     "_comment" :  "[str] the file to use as a background",
@@ -83,7 +83,7 @@
     
     
     "_comment" :  "The well lit photo of the lanex to visually inspect the transformation",
-    "pointingCalibrationImage" : ".\\AirLanex_339.tiff",
+    "pointingCalibrationImage" : ".\\AirLanex_330.tiff",
     
     
     "_comment" :  "a nudge to vertical offset of the lanex in mm",
