@@ -17,6 +17,7 @@ import sys
 import json
 
 def main(input_deck_path=None):
+
     pointing2d_lib.update_user_settings(input_deck_path=None)
     
     if settings.assert_reasonable():
@@ -47,9 +48,10 @@ def main(input_deck_path=None):
             stats = pointing2d_lib.generate_stats(exportDir, src, dst, backgroundData)
 
         report = pointing2d_lib.generate_report(stats, exportDir)
-        #if settings.blockingPlot:
-        #    plt.show()
-        #    input("close? : ")
+        if settings.blockingPlot:
+            plt.show()
+            input("close? : ")
+  
 
 if __name__ == "__main__":
     main()

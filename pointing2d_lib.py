@@ -528,6 +528,10 @@ def update_user_settings(input_deck_path=None):
         else:
             print("Warning: No input deck file provided, using default settings \n\t(this will probably not apply to your machine as it contains hardcoded paths).")
             print("Usage: python script.py <input_deck_path>")
+
+    maindir = os.getcwd()
+
+    os.chdir(os.path.dirname(input_deck_path)) # allow for relative paths in input deck
     
     # Load the input_deck (assuming it's a JSON file for this example)
     with open(input_deck_path, 'r') as f:
@@ -540,6 +544,7 @@ def update_user_settings(input_deck_path=None):
         else:
             print(f"Warning: {setting_name} not found in settings.")
 
+    os.chdir(maindir)
 
 if __name__ == "__main__":
     print("this is not the main file")

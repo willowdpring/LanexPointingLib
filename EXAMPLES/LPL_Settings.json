@@ -1,0 +1,139 @@
+{
+    "_comment" :  "[bool] this will toggle printouts in many functions, set to True to enabe logging to terminal and assist debugging",
+    "verbose" : true, 
+
+    
+    "_comment" : "[str] the target root directory saves will go in ./EXPORTED",
+    "targetDir" : ".\\DATA", 
+    
+    
+    "_comment" :  "[int] the first file to analyse",
+    "start" : 0,  
+    
+    
+    "_comment" :  "[int] the last file to analyse -1 for all",
+    "stop" : 10, 
+    
+    
+    "_comment" :  "[int] the step size",
+    "decimate" : 1,  
+    
+    
+    "_comment" :  "[bool] if True we will save the numpy arrays and png's of the resulting contor plots?",
+    "saving" : true,  
+    
+    
+    "_comment" :  "[bool] if True we will overwrite existing save data (in the ./EXPORTED/ directory on a file by file basis) Backgrounds are generated from user selected files in a seperate directory by compressing all the tiff files in that directory along z using a max() and a mean() method",
+    "overwrite" : true,  
+    
+    
+    "_comment" :  "[str] the directory to generate",
+    "background_dir" : ".\\DATA\\BACKGROUND",  
+    
+    
+    "_comment" :  "[bool] if True we will generate /EXPORTED/MAX_BAK.tiff and /EXPORTED/AVG_BAK.tiff in the background folder",
+    "generate_background_files" : false,
+    
+    
+    "_comment" :  "[str] the file to use as a background",
+    "background" : ".\\DATA\\BACKGROUND\\EXPORTED\\AVG_BAK.tiff",
+    
+    
+    "_comment" :  "[int] the percentile below which the background data is ignored",
+    "background_clip" : 40,
+    
+    
+    "_comment" : "[float] a multiplicative factor applied to the background data",
+    "background_scale" : 0.8, 
+    
+    
+    "_comment" :  "[bool] if True we will generate a plot before and after subtracting the backgtround to check",
+    "plotBackgroundSubtraction" : true,  
+    
+    
+    "_comment" :  "[string] when evaluated this should make the The convolution kernel applied before background subtraction",
+    "kernel" : "backfilt.norm_gaus2d_ary(1, 3, 1, 3)",  
+    
+    
+    "_comment" :  "[list[3|5|53]] the sequence of x-ray filters to apply [] for none (see backfiltlib.py)",
+    "filters": [],
+    
+    
+    "_comment" :  "[array([[[x1,y1],[x2,y2]]])] list of paird x,y, coordinates for rectangles to be ignored for user defined regions",
+    "ignore_regions" : [], 
+    
+    
+    "_comment" :  "the peak to mean value ratio above which the image is accepted as having electrons",
+    "ignore_ptvs_below" : 2,   
+    
+    
+    "_comment" : "The transformation is generated from four known points, pixel values in the first and [x,y,z] in the second  with the laser along z and the target at origin [theta, phi] coordinates can be used if the toggle is set to true",
+    
+
+    "_comment" :  "units/radian",
+    "units" : 1000,  
+    
+    
+    "_comment" :  "pixels/unit",
+    "resolution" : 10,  
+    
+    
+    "_comment" :  "the radius of the analysis box",
+    "zoom_radius" : 10,  
+    
+    
+    "_comment" :  "The well lit photo of the lanex to visually inspect the transformation",
+    "pointingCalibrationImage" : ".\\AirLanex_339.tiff",
+    
+    
+    "_comment" :  "a nudge to vertical offset of the lanex in mm",
+    "dh" : 0,  
+    
+    
+    "_comment" :  "a nudge to horizontal offset of the lanex in mm",
+    "dx" : 1.5,
+    
+
+    "_comment" :  "measurements are taken in horizontal plane of the laser and the heights of the top and bottom corners of the lanex are calculated",
+
+    "_comment" :  "[float] mm distance to the lanex plane in the axis of the laser",
+    "lanex_onAx_dist" : 1000,
+
+
+    "_comment" :  "[float] deg angle of the normal of the lanex plane to the laser",
+    "lanex_theta" : 45,
+    "_comment" :  " WARN: this assumes that the lanex plane is vertical and only rotates about z",
+
+
+    "_comment" :  "[float] mm distance of the edge of the lanex (0mm ruler mark)",
+    "lanex_inPlane_dist" : 0,                         
+    
+
+    "_comment" :  " from the axis in the plane of the lanex -ve implies that the laser axes intersects the lanex",
+    
+    
+    "_comment" :  " [float] mm height of the lanex screen",
+    "lanex_height" : 50,
+
+
+    "_comment" :  " [float] mm height of the center plane of the lanex from the plane of the laser",
+    "lanex_vertical_offset" : 0,
+
+
+    "_comment" :  "Known points is a dict of four lanex corners as keys and 3 element arrays as entries: [mm Mark on ruler, pixel X coord, pixel Y coord]",
+    "known_points" : [[[130.500,172.500], [80.000,161.000], [62.500,328.000], [130.500,266.000]],[[20.705,17.029],[13.406,14.304], [9.381,22.318], [20.015,22.058]]],
+
+
+    "_comment" :  "this is a placeholder for a variable that will contain the transformation and normalisation matricies",
+    "transformation" : null, 
+
+
+    "_comment" :  " [bool] if True the known points are given in spherical coords (without radius)",
+    "in_theta_phi" : false,
+
+
+    "_comment" :  " [bool] if True a plot will be generated to check the generated transformation",
+    "checkTransformation" : true  
+  
+
+}
