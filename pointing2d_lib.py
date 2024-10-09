@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from matplotlib import rc
 from tqdm import tqdm
+from scipy.optimize import curve_fit
 
 font = {'family': 'Corbel', 'weight': 'normal', 'size': 14}
 
@@ -306,21 +307,22 @@ def generate_report(stats, exportDir):
 
     report_figures[-1][0].set_size_inches(9,9)
     
-    nbins = int(max(len(stats) / 10, 10))
+    nbins = int(max(np.sqrt(len(stats)), 10))
     pAx = report_figures[-1][0].add_subplot(gs_hist[1, 0], )    
     
     pAx.minorticks_on()
     uux = np.mean(u_x)
     uuy = np.mean(u_y)
     
-    sx = np.sqrt(u_x.var())
-    sy = np.sqrt(u_y.var())
+    #sx = np.sqrt(u_x.var())
+    #sy = np.sqrt(u_y.var())
+
 
     u_0_x = u_x-uux
     u_0_y = u_y-uuy 
-    pAx.hist2d(u_0_x, u_0_y, nbins, [[-25, 25], [-25, 25]]) 
+    pAx.hist2d(u_0_x, u_0_y, nbins, [[-settings.zoom_radius, settings.zoom_radius ], [-settings.zoom_radius, settings.zoom_radius]])
     pAx.set_aspect('equal')
-    pAx.add_patch(Circle((0,0),6,ec='red',fill=False))
+    #pAx.add_patch(Circle((0,0),6,ec='red',fill=False))
  
     xlabels = [item.get_text() if item.get_text() != '0' else r'$\mu_x$' for item in pAx.get_xticklabels()]
     pAx.set_xticklabels(xlabels)
@@ -338,28 +340,38 @@ def generate_report(stats, exportDir):
     pax_histx.axes.get_xaxis().set_visible(False)
     pax_histy.axes.get_yaxis().set_visible(False)
 
-    pax_histx.hist(
+    xcount, xbins,_ = pax_histx.hist(
         u_0_x,
         nbins,
         density = True,
         color='green',
     )
-    pax_histy.hist(
+
+    xbins=xbins[:-1]+(xbins[1]-xbins[0])/2
+
+    ycount, ybins,_ = pax_histy.hist(
         u_0_y, 
         nbins, 
         density = True,
         color='green', 
         orientation='horizontal'
     )
-
+    ybins = ybins[:-1] + (ybins[1] - ybins[0]) / 2
     xmin, xmax = pax_histx.get_xlim()
     ymin, ymax = pax_histy.get_ylim()
 
     x = np.linspace(xmin, xmax, 100)
     y = np.linspace(ymin, ymax, 100)
 
-    px = norm.pdf(x, 0, sx)
-    py = norm.pdf(y, 0, sy)
+    def gauss (x, A, s):
+        return A*np.exp(-(x/s)**2)
+
+    poptx, pcovx = curve_fit(gauss, xbins, xcount)
+    popty, pcovy = curve_fit(gauss, ybins, ycount)
+
+
+    px = gauss(x,*poptx)
+    py = gauss(y,*popty)
 
     pax_histx.plot(x, px, 'k', linewidth=2)
     pax_histy.plot(py, y, 'k', linewidth=2)
@@ -367,7 +379,7 @@ def generate_report(stats, exportDir):
     xlab = r"$\theta_x$ [mRad]"
     ylab = r"$\theta_y$ [mRad]"
 
-    rep_str = "$\\mu_x$ = {:.2f},\n$\\sigma_x$ = {:.2f}\n\n$\\mu_y$ = {:.2f},\n$\\sigma_y$ = {:.2f}".format(uux,sx,uuy,sy)
+    rep_str = "$\\mu_x$ = {:.2f},\n$\\sigma_x$ = {:.2f}\n\n$\\mu_y$ = {:.2f},\n$\\sigma_y$ = {:.2f}".format(*poptx, *popty)
     pax_text.text(0.1, 0.6, rep_str, fontsize=10, verticalalignment='top', family='monospace')
 
     pAx.set_xlabel(xlab)
