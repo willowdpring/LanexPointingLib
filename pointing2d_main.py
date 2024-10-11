@@ -13,12 +13,13 @@ import matplotlib.pyplot as plt
 import pointing2d_settings as settings
 import pointing2d_perspective as perspective
 import pointing2d_lib
+import pickle
 import sys
 import json
 
 def main(input_deck_path=None):
 
-    pointing2d_lib.update_user_settings(input_deck_path=None)
+    pointing2d_lib.update_user_settings(input_deck_path=input_deck_path)
     
     if settings.assert_reasonable():
         exportDir = "{}\\EXPORTED".format(settings.targetDir)  # name the subdirectory to export to
@@ -39,11 +40,16 @@ def main(input_deck_path=None):
 
         backgroundData = pointing2d_lib.get_background()
 
-        if os.path.exists("{}\\stats.npy".format(exportDir)) and not settings.overwrite:
-            print("found existing stats file in export directory")
-            stats = np.load("{}\\stats.npy".format(exportDir),
-                            allow_pickle=True,
-                            fix_imports=True)
+        if os.path.exists("{}\\stats.pickle".format(exportDir)) and not settings.overwrite:
+            print("found existing pikle stats file in export directory")
+            
+            with open("{}\\stats.pickle".format(exportDir), 'rb') as handle:
+                stats = pickle.load(handle)
+        elif os.path.exists("{}\\stats.npy".format(exportDir)) and not settings.overwrite:
+            print("found existing numpy stats file in export directory")
+
+            stats = np.load("{}\\stats.npy".format(exportDir), allow_pickle=True)
+
         else:
             stats = pointing2d_lib.generate_stats(exportDir, src, dst, backgroundData)
 

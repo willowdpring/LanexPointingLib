@@ -23,6 +23,7 @@ from matplotlib.patches import Circle
 from matplotlib import rc
 from tqdm import tqdm
 from scipy.optimize import curve_fit
+import pickle
 
 font = {'family': 'Corbel', 'weight': 'normal', 'size': 14}
 
@@ -148,93 +149,98 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
 
         pixelData = np.array(PIL.Image.open(file))
 
-        if settings.verbose: print(f"using {len(settings.filters)} x-ray filters")
-        for f in settings.filters:
-            pixel_data = backfilt.filterImage(pixelData, f)
-        if settings.verbose: print(f"convolving with {settings.kernel}")
-        pixelData = convolve(pixelData, kernel, mode='same')
-
-        if backgroundData is not None:
-            if settings.verbose: print(f"Subtracting Backgrounds")
-            if not backgroundData.shape == pixelData.shape:
-                print("Background missmatch")
-            else:
-                A = pixelData.sum()
-                B = backgroundData.sum()
-                pixelData = np.subtract(
-                    pixelData,
-                    np.multiply(backgroundData, (settings.background_scale * A / B)))
-
-        noise_scale = np.percentile(pixelData[30:-1, 1:-35], settings.background_clip)
-        pixelData = np.clip(pixelData - noise_scale, 0, np.inf)
-
-        transformed, axis = perspective.TransformToThetaPhi(
-            pixelData, np.array(src, np.float32),
-            np.array(dst, np.float32))
-
-        zoom_x_lims = [
-            max(0,int(axis[1] - (settings.zoom_radius * settings.resolution))),
-            int(axis[1] + (settings.zoom_radius * settings.resolution))
-        ]
-        zoom_y_lims = [
-            int(axis[0] + (settings.zoom_radius * settings.resolution)),
-            max(0,int(axis[0] - (settings.zoom_radius * settings.resolution)))
-        ]
-
-        roi = np.array(transformed[zoom_x_lims[0]:zoom_x_lims[1],zoom_y_lims[1]:zoom_y_lims[0]])
-
-        if settings.plotBackgroundSubtraction:
-            roi_pre = roi
-
-        for region in settings.ignore_regions:
-            try:
-                roi[region[0][0]:region[1][0],
-                    region[0][1]:region[1][1]] = np.percentile(roi, 10)
-            except (IndexError):
-                print("ignore region {} is invalid".format(region))
-        for f in settings.filters:
-            roi = backfilt.filterImage(roi, f)
-
-        if np.max(roi) > settings.ignore_ptvs_below * np.mean(roi):
-
-            if settings.plotBackgroundSubtraction:
-                cbpad = 0
-                cbscale = 0.6
-                rfig, rax = plt.subplots(1, 2, figsize=(12, 6))
-                im1 = rax[0].imshow(roi_pre,
-                                    vmin=np.min(roi),
-                                    vmax=np.max(roi))
-                cax1 = rfig.colorbar(im1,
-                                        ax=rax[0],
-                                        pad=cbpad,
-                                        shrink=cbscale,
-                                        location='right')
-
-                im2 = rax[1].imshow(roi,
-                                    vmin=np.min(roi),
-                                    vmax=np.max(roi))
-                cax2 = rfig.colorbar(im2,
-                                        ax=rax[1],
-                                        pad=cbpad,
-                                        shrink=cbscale,
-                                        location='right')
-
-            x = np.linspace(-settings.zoom_radius, settings.zoom_radius, roi.shape[1])
-            y = np.linspace(-settings.zoom_radius, settings.zoom_radius, roi.shape[0])
-
-            x2, y2 = np.meshgrid(x, y)
-
-            result = fit.fit_double_gauss2d_lm(x2, y2, roi, fmodel)
+        if os.path.exists(f"{savefile}") and not settings.overwrite:
+            print(f"found fitresults for {savefile}")
+            result = lm.model.load_modelresult(f"{savefile}")
 
         else:
-            print("I don't think there are electrons in this image: {}".format(file))
-            print("max = {}".format(np.max(roi)))
-            print("mean = {}".format(np.mean(roi)))
-            print("med = {}".format(np.median(roi)))
-            result = None
-            x2 = None
-            y2 = None
-            roi = None
+            if settings.verbose: print(f"using {len(settings.filters)} x-ray filters")
+            for f in settings.filters:
+                pixel_data = backfilt.filterImage(pixelData, f)
+            if settings.verbose: print(f"convolving with {settings.kernel}")
+            pixelData = convolve(pixelData, kernel, mode='same')
+
+            if backgroundData is not None:
+                if settings.verbose: print(f"Subtracting Backgrounds")
+                if not backgroundData.shape == pixelData.shape:
+                    print("Background missmatch")
+                else:
+                    A = pixelData.sum()
+                    B = backgroundData.sum()
+                    pixelData = np.subtract(
+                        pixelData,
+                        np.multiply(backgroundData, (settings.background_scale * A / B)))
+
+            noise_scale = np.percentile(pixelData[30:-1, 1:-35], settings.background_clip)
+            pixelData = np.clip(pixelData - noise_scale, 0, np.inf)
+
+            transformed, axis = perspective.TransformToThetaPhi(
+                pixelData, np.array(src, np.float32),
+                np.array(dst, np.float32))
+
+            zoom_x_lims = [
+                max(0,int(axis[1] - (settings.zoom_radius * settings.resolution))),
+                int(axis[1] + (settings.zoom_radius * settings.resolution))
+            ]
+            zoom_y_lims = [
+                int(axis[0] + (settings.zoom_radius * settings.resolution)),
+                max(0,int(axis[0] - (settings.zoom_radius * settings.resolution)))
+            ]
+
+            roi = np.array(transformed[zoom_x_lims[0]:zoom_x_lims[1],zoom_y_lims[1]:zoom_y_lims[0]])
+
+            if settings.plotBackgroundSubtraction:
+                roi_pre = roi
+
+            for region in settings.ignore_regions:
+                try:
+                    roi[region[0][0]:region[1][0],
+                        region[0][1]:region[1][1]] = np.percentile(roi, 10)
+                except (IndexError):
+                    print("ignore region {} is invalid".format(region))
+            for f in settings.filters:
+                roi = backfilt.filterImage(roi, f)
+
+            if np.max(roi) > settings.ignore_ptvs_below * np.mean(roi):
+
+                if settings.plotBackgroundSubtraction:
+                    cbpad = 0
+                    cbscale = 0.6
+                    rfig, rax = plt.subplots(1, 2, figsize=(12, 6))
+                    im1 = rax[0].imshow(roi_pre,
+                                        vmin=np.min(roi),
+                                        vmax=np.max(roi))
+                    cax1 = rfig.colorbar(im1,
+                                            ax=rax[0],
+                                            pad=cbpad,
+                                            shrink=cbscale,
+                                            location='right')
+
+                    im2 = rax[1].imshow(roi,
+                                        vmin=np.min(roi),
+                                        vmax=np.max(roi))
+                    cax2 = rfig.colorbar(im2,
+                                            ax=rax[1],
+                                            pad=cbpad,
+                                            shrink=cbscale,
+                                            location='right')
+
+                x = np.linspace(-settings.zoom_radius, settings.zoom_radius, roi.shape[1])
+                y = np.linspace(-settings.zoom_radius, settings.zoom_radius, roi.shape[0])
+
+                x2, y2 = np.meshgrid(x, y)
+
+                result = fit.fit_double_gauss2d_lm(x2, y2, roi, fmodel)
+
+            else:
+                print("I don't think there are electrons in this image: {}".format(file))
+                print("max = {}".format(np.max(roi)))
+                print("mean = {}".format(np.mean(roi)))
+                print("med = {}".format(np.median(roi)))
+                result = None
+                x2 = None
+                y2 = None
+                roi = None
         if result is not None:
 
             fitted = fmodel.func(x2, y2, **result.best_values)
@@ -242,45 +248,48 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
             stats.append(
                 [result.rsquared, result.best_values, result.covar])
 
-            fig, ax = plt.subplots(1, 1)
+            fig, ax = plt.subplots(1, 1,figsize=(6,6))
 
-            ax.imshow(roi,
+            im = ax.imshow(roi,
                         cmap=plt.cm.jet,
                         origin='lower',
                         extent=(x.min(), x.max(), y.min(), y.max()))
             ax.contour(x,
                         y,
                         fitted,
-                        2,
+                        4,
                         colors='black',
                         extent=(x.min(), x.max(), y.min(), y.max()),
-                        linewidths=0.8)
+                        linewidths=0.3)
+         
+            fig.colorbar(im,ax=ax)
+
+            V_C = 2 * np.pi * result.best_values['amplitude_1'] * result.best_values['sigma_x_1'] * result.best_values['sigma_y_1']
+            V_B = 2 * np.pi * result.best_values['amplitude_2'] * result.best_values['sigma_x_2'] * result.best_values['sigma_y_2']
+ 
+            ax.set_title(f"\n BUNCH: [A:{result.best_values['amplitude_2']:.1f},"+r" $\sigma_x$"+f":{result.best_values['sigma_x_2']:.2f},"+r" $\sigma_y$"+f":{result.best_values['sigma_y_2']:.2f}] \n Integral {V_B:.0f} at ["+r"$\theta_x$"+f":{result.best_values['xo_1']:.1f},"+r"$\theta_y$"+f":{result.best_values['yo_1']:.1f}]" +
+                         f"\n CLOUD: [A:{result.best_values['amplitude_1']:.1f},"+r" $\sigma_x$"+f":{result.best_values['sigma_x_1']:.2f},"+r" $\sigma_y$"+f":{result.best_values['sigma_y_1']:.2f}] \n Integral {V_C:.0f} at ["+r"$\theta_x$"+f":{result.best_values['xo_2']:.1f},"+r"$\theta_y$"+f":{result.best_values['yo_2']:.1f}]")
             
-            smaller = '1'
-            if result.best_values["sigma_x_1"] > result.best_values["sigma_x_2"]:
-                smaller = '2'
+            ax.set_xlabel(r"$\theta_x$")
+            ax.set_ylabel(r"$\theta_y$")
 
-            bunch_charge = (result.best_values["amplitude_{}".format(smaller)]*result.best_values["sigma_x_{}".format(smaller)]*result.best_values["sigma_y_{}".format(smaller)])
-
-            ax.set_title('Charge of :{:.1f} [arb. Units] \n'.format(bunch_charge) + r'at $\theta$ = {:.1f}, $\phi$ = {:.1f}'.format(result.best_values["xo_{}".format(smaller)],result.best_values["yo_{}".format(smaller)]))
             name = file[:-5].split('\\')[-1]
+
+            fig.tight_layout()
 
             if settings.saving:
                 saveplot = "{}\\{}_plot".format(exportDir, name)
                 lm.model.save_modelresult(result, savefile)
-                fig.savefig(saveplot)
+                fig.savefig(saveplot, dpi=600)
                 plt.close(fig)
             else:
                 fig.show()
                 settings.blockingPlot = True
 
-        
     if settings.saving:
-        np.save("{}\\stats".format(exportDir),
-                stats,
-                allow_pickle=True,
-                fix_imports=True)
-
+        with open("{}\\stats.pickle".format(exportDir), 'wb') as handle:
+            pickle.dump(stats, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
     return(stats)
 
 def generate_report(stats, exportDir):
@@ -293,7 +302,7 @@ def generate_report(stats, exportDir):
 
     report_figures.append([plt.figure(figsize = (9,9), dpi=360), 'pointing']) 
     report_figures[-1][0].set_tight_layout(True)
-  
+
     gs_hist = report_figures[-1][0].add_gridspec(2,
                                                  2,
                                                  width_ratios=(4, 1),
@@ -307,17 +316,13 @@ def generate_report(stats, exportDir):
 
     report_figures[-1][0].set_size_inches(9,9)
     
-    nbins = int(max(np.sqrt(len(stats)), 10))
+    nbins = int(max(np.sqrt(len(stats)), 15))
     pAx = report_figures[-1][0].add_subplot(gs_hist[1, 0], )    
     
     pAx.minorticks_on()
     uux = np.mean(u_x)
     uuy = np.mean(u_y)
     
-    #sx = np.sqrt(u_x.var())
-    #sy = np.sqrt(u_y.var())
-
-
     u_0_x = u_x-uux
     u_0_y = u_y-uuy 
     pAx.hist2d(u_0_x, u_0_y, nbins, [[-settings.zoom_radius, settings.zoom_radius ], [-settings.zoom_radius, settings.zoom_radius]])
@@ -335,7 +340,6 @@ def generate_report(stats, exportDir):
 
     pax_text =  report_figures[-1][0].add_subplot(gs_hist[0, 1])
     pax_text.axis('off')  # Turn off axis for the text subplot
-
 
     pax_histx.axes.get_xaxis().set_visible(False)
     pax_histy.axes.get_yaxis().set_visible(False)
@@ -366,8 +370,16 @@ def generate_report(stats, exportDir):
     def gauss (x, A, s):
         return A*np.exp(-(x/s)**2)
 
-    poptx, pcovx = curve_fit(gauss, xbins, xcount)
-    popty, pcovy = curve_fit(gauss, ybins, ycount)
+    try:
+        poptx, pcovx = curve_fit(gauss, xbins, xcount, maxfev = 6000)
+    except RuntimeError as E:
+        print("WARNING", E)
+        popt_x = [np.sqrt(2*np.pi*u_x.var()),np.sqrt(u_x.var())]
+    try:
+        popty, pcovy = curve_fit(gauss, ybins, ycount)
+    except RuntimeError as E:
+        print("WARNING", E)
+        popt_x = [np.sqrt(2*np.pi*u_y.var()),np.sqrt(u_y.var())]
 
 
     px = gauss(x,*poptx)
@@ -394,7 +406,7 @@ def generate_report(stats, exportDir):
     s_y = np.array([stats[i][1]['sigma_y_2'] for i in range(len(stats))])
     th = np.array([stats[i][1]['theta_2'] for i in range(len(stats))])
     
-    report_figures.append([plt.figure(figsize=(9, 12)), 'emittence'])
+    report_figures.append([plt.figure(figsize=(9, 12)), 'emittence_b'])
     maj_ax = report_figures[-1][0].add_subplot(311)
     min_ax = report_figures[-1][0].add_subplot(312)
     th_ax = report_figures[-1][0].add_subplot(313)
@@ -426,33 +438,75 @@ def generate_report(stats, exportDir):
     th_scat3d_ax.set_ylabel("Minor")
     th_scat3d_ax.set_zlabel("Theta")
 
+
+
+        ##
+    #   Cloud Emittence:
+    #
+    s_x = np.log10(np.array([stats[i][1]['sigma_x_1'] for i in range(len(stats))]))
+    s_y = np.log10(np.array([stats[i][1]['sigma_y_1'] for i in range(len(stats))]))
+    th = np.array([stats[i][1]['theta_1'] for i in range(len(stats))])
+    
+    report_figures.append([plt.figure(figsize=(9, 12)), 'emittence_c'])
+    maj_ax = report_figures[-1][0].add_subplot(311)
+    min_ax = report_figures[-1][0].add_subplot(312)
+    th_ax = report_figures[-1][0].add_subplot(313)
+    report_figures[-1][0].suptitle("Analysis of the Cloud Sizes")
+    report_figures[-1][0].set_tight_layout(True)
+
+
+    maj_ax.hist(s_x, nbins)
+    mxaxlab = "$log_{10}(\sigma_{major})$"+"[log(mRad)] mean:{:.2f}  s.d.:{:.2f}".format(s_x.mean(), np.sqrt(s_x.var()))
+    maj_ax.set_xlabel(mxaxlab)
+    min_ax.hist(s_y, nbins)
+    minxaxlab = "$log_{10}(\sigma_{minor})$"+"[log(mRad)] mean:{:.2f}  s.d:{:.2f}".format(s_y.mean(), np.sqrt(s_y.var()))
+    min_ax.set_xlabel(minxaxlab)
+
+
+    th = ((th+90)%180)-90 # Center around 0
+    th_ax.hist(th, nbins)
+    th_ax.set_xlabel("$\phi [^\circ]$ (from x to major axis) mean:{:.2f}  s.d.:{:.2f}".format(
+        th.mean(), np.sqrt(th.var())))
+
+
+
     ##
-    #   Bunch Charge:
-    #   TODO: currently in arbitrary units
+    #   Bunch Amplitude and Contrast:
+    #  
+    def gaussian_volume(A, S_x, S_y):
+        return A * S_x * S_y * 2 * np.pi
+    
+    ratio = []
+    V_1 = []
+    V_2 = []
+    for i, shot in enumerate(stats):
+        V1 = gaussian_volume(shot[1]['amplitude_1'],shot[1]['sigma_x_1'],shot[1]['sigma_y_1'])
+        V2 = gaussian_volume(shot[1]['amplitude_2'],shot[1]['sigma_x_2'],shot[1]['sigma_y_2'])
+        if V1>0 and V2>0:
+            V_1.append(np.log10(V1))
+            V_2.append(np.log10(V2))
+            if V1/V2 < 100:
+                ratio.append(V1/V2)
 
-    amp = np.array([stats[i][1]['amplitude_2'] for i in range(len(stats))])  
+    report_figures.append((plt.figure(figsize=(9, 12)), 'Charge Ratio'))
 
-    report_figures.append((plt.figure(figsize=(9, 12)), 'charge'))
-    amp_scat3d_ax = report_figures[-1][0].add_subplot(projection='3d')
-    amp_scat3d_ax.scatter(s_x, s_y, amp)
-    amp_scat3d_ax.set_xlabel("Major")
-    amp_scat3d_ax.set_ylabel("Minor")
-    amp_scat3d_ax.set_zlabel("Amplitude")    
+    V1ax = report_figures[-1][0].add_subplot(3,1,1)
+    V1ax.hist(V_1,bins=30)
+    V1ax.set_title("Log_10 of the volume under the wider gaussian g_1")
 
-    emit = np.sqrt(np.add(np.power(s_x,2),np.power(s_y,2)))
-    point = np.sqrt(np.add(np.power(u_x,2),np.power(u_y,2)))
+    V2ax = report_figures[-1][0].add_subplot(3,1,2)
+    V2ax.hist(V_2,bins=30)
+    V2ax.set_title("Log_10 of the volume under the thinner gaussian g_2")
 
-    report_figures.append((plt.figure(figsize=(9, 12)), 'charge'))
-    amp_evp_scat3d_ax = report_figures[-1][0].add_subplot(projection='3d')
-    amp_evp_scat3d_ax.scatter(point, emit, amp)
-    amp_evp_scat3d_ax.set_xlabel("Pointing")
-    amp_evp_scat3d_ax.set_ylabel("Emittence")
-    amp_evp_scat3d_ax.set_zlabel("Amplitude")    
+    Rax = report_figures[-1][0].add_subplot(3,1,3)
+    Rax.hist(ratio,bins=30)
+    #Rax.set_xlim(0,100)
+    Rax.set_title("ratio of Volumes where less than 500")
 
 
     for fig in report_figures:
         if settings.saving:
-            fig[0].savefig("{}\\{}_fig".format(exportDir, fig[1]))
+            fig[0].savefig("{}\\{}_fig".format(exportDir, fig[1]),dpi=600)
         else:
             fig[0].show()
             settings.blockingPlot = True
@@ -558,7 +612,7 @@ def update_user_settings(input_deck_path=None):
     for setting_name, setting_value in input_deck.items():
         if hasattr(settings, setting_name):
             if isinstance(setting_value,str):
-                if setting_value.startswith(".\\"):
+                if setting_value == '.' or setting_value.startswith(".\\") or setting_value.startswith("..\\"):
                     setting_value = os.path.abspath(setting_value)
             setattr(settings, setting_name, setting_value)
 

@@ -421,8 +421,11 @@ def setup_double_2d_gauss_model():
     fmodel = lm.Model(lm_double_gaus2d, independent_vars=('x', 'y'), nan_policy = 'omit')
     # x, y, amplitude_1, offset, xo_1, yo_1, theta_1, sigma_x_1, sigma_y_1,
     # amplitude_2, xo_2, yo_2, theta_2, sigma_x_2, sigma_y_2
-    fmodel.set_param_hint('sigma_x_1', min=5)
-    fmodel.set_param_hint('sigma_y_1', min=5)
+    fmodel.set_param_hint('amplitude_1', min=1)
+    fmodel.set_param_hint('amplitude_2', min=1)
+ 
+    fmodel.set_param_hint('sigma_x_1', min=10, max=200)
+    fmodel.set_param_hint('sigma_y_1', min=10, max=200)
 
     fmodel.set_param_hint('sigma_x_2', min=0.1, max=5)
     fmodel.set_param_hint('sigma_y_2', min=0.1, max=5)

@@ -118,7 +118,6 @@ def TransformToThetaPhi(pixelData, src, dst, zoom=5, weighted = True):
 
     pixelData = np.multiply(pixelData,weights)
 
-
     if settings.verbose: print("Transforming Image")
     out_im = warpPerspective(pixelData, warp_transform, (dstmax[0], dstmax[1]))
     if settings.verbose: print("Done")
@@ -236,13 +235,14 @@ def GenerateWeightArray(pixelDataShape, warp_transform, plotting = False):
 
     if plotting:
         fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
-        ax.scatter(px,py,samples,'rx',label = "Samples")
-        ax.plot_surface(fxmesh, fymesh, weights, label = "interpolated")
+        ax = fig.add_subplot()
+        im = ax.imshow(weights)
+        fig.colorbar(im)
+        #ax.scatter(px,py,'rx',label = "Samples")
         ax.set_title("Sampled and interpolated weights for each pixel")
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
-        ax.set_zlabel("Integration Weight")
+        #ax.set_zlabel("Integration Weight")
         fig.show()
         settings.blockingPlot = True
 
