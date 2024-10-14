@@ -20,6 +20,8 @@ verbose = True #True # [bool] this will toggle printouts in many functions, set 
 
 targetDir = "../example/" #[str] the target root directory saves will go in ./EXPORTED
 
+shortlist = None # this can be set as a list of files to use from targetdir  
+
 start = 0  # [int] the first file to analyse
 
 stop = 1 # [int] the last file to analyse -1 for all

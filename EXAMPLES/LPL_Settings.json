@@ -24,7 +24,10 @@
     
     
     "_comment" :  "[bool] if True we will overwrite existing save data (in the ./EXPORTED/ directory on a file by file basis) Backgrounds are generated from user selected files in a seperate directory by compressing all the tiff files in that directory along z using a max() and a mean() method",
-    "overwrite" : true,  
+    "overwrite" : false,  
+
+    "_comment" : "null or [str] list of file names to sort from tiff files for generating stats",
+    "shortlist" : ["AirLanex_1","AirLanex_2","AirLanex_3","AirLanex_4","AirLanex_5"],
     
     
     "_comment" :  "[str] the directory to generate",

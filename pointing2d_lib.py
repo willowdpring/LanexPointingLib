@@ -135,6 +135,13 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
     fmodel = fit.setup_double_2d_gauss_model()
 
     tifFiles = backfilt.walkDir(settings.targetDir)
+    if settings.shortlist is not None:
+        filtered = []
+        for file in tifFiles:
+            for item in settings.shortlist:
+                if item in file:
+                    filtered.append(file)
+        tifFiles = filtered
 
     kernel = eval(settings.kernel)
 
@@ -151,7 +158,10 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
 
         if os.path.exists(f"{savefile}") and not settings.overwrite:
             print(f"found fitresults for {savefile}")
-            result = lm.model.load_modelresult(f"{savefile}")
+            result = lm.model.load_modelresult(f"{savefile}",{"lm_double_gaus2d":fit.lm_double_gaus2d})
+
+            x2 = result.userkws['x']
+            y2 = result.userkws['y']
 
         else:
             if settings.verbose: print(f"using {len(settings.filters)} x-ray filters")
@@ -231,7 +241,7 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
                 x2, y2 = np.meshgrid(x, y)
 
                 result = fit.fit_double_gauss2d_lm(x2, y2, roi, fmodel)
-
+                best_values = result.best_values
             else:
                 print("I don't think there are electrons in this image: {}".format(file))
                 print("max = {}".format(np.max(roi)))
@@ -241,51 +251,58 @@ def generate_stats(exportDir, src, dst, backgroundData=None):
                 x2 = None
                 y2 = None
                 roi = None
+
+            
         if result is not None:
+
+            name = file[:-5].split('\\')[-1]
+            saveplot = "{}\\{}_plot".format(exportDir, name)
 
             fitted = fmodel.func(x2, y2, **result.best_values)
 
             stats.append(
                 [result.rsquared, result.best_values, result.covar])
 
-            fig, ax = plt.subplots(1, 1,figsize=(6,6))
-
-            im = ax.imshow(roi,
-                        cmap=plt.cm.jet,
-                        origin='lower',
-                        extent=(x.min(), x.max(), y.min(), y.max()))
-            ax.contour(x,
-                        y,
-                        fitted,
-                        4,
-                        colors='black',
-                        extent=(x.min(), x.max(), y.min(), y.max()),
-                        linewidths=0.3)
-         
-            fig.colorbar(im,ax=ax)
-
-            V_C = 2 * np.pi * result.best_values['amplitude_1'] * result.best_values['sigma_x_1'] * result.best_values['sigma_y_1']
-            V_B = 2 * np.pi * result.best_values['amplitude_2'] * result.best_values['sigma_x_2'] * result.best_values['sigma_y_2']
- 
-            ax.set_title(f"\n BUNCH: [A:{result.best_values['amplitude_2']:.1f},"+r" $\sigma_x$"+f":{result.best_values['sigma_x_2']:.2f},"+r" $\sigma_y$"+f":{result.best_values['sigma_y_2']:.2f}] \n Integral {V_B:.0f} at ["+r"$\theta_x$"+f":{result.best_values['xo_1']:.1f},"+r"$\theta_y$"+f":{result.best_values['yo_1']:.1f}]" +
-                         f"\n CLOUD: [A:{result.best_values['amplitude_1']:.1f},"+r" $\sigma_x$"+f":{result.best_values['sigma_x_1']:.2f},"+r" $\sigma_y$"+f":{result.best_values['sigma_y_1']:.2f}] \n Integral {V_C:.0f} at ["+r"$\theta_x$"+f":{result.best_values['xo_2']:.1f},"+r"$\theta_y$"+f":{result.best_values['yo_2']:.1f}]")
-            
-            ax.set_xlabel(r"$\theta_x$")
-            ax.set_ylabel(r"$\theta_y$")
-
-            name = file[:-5].split('\\')[-1]
-
-            fig.tight_layout()
-
-            if settings.saving:
-                saveplot = "{}\\{}_plot".format(exportDir, name)
-                lm.model.save_modelresult(result, savefile)
-                fig.savefig(saveplot, dpi=600)
-                plt.close(fig)
+            if os.path.exists(saveplot) and not settings.overwrite:
+                pass
             else:
-                fig.show()
-                settings.blockingPlot = True
+                try:
+                    fig, ax = plt.subplots(1, 1,figsize=(6,6))
 
+                    im = ax.imshow(roi,
+                                cmap=plt.cm.jet,
+                                origin='lower',
+                                extent=(x.min(), x.max(), y.min(), y.max()))
+                    ax.contour(x,
+                                y,
+                                fitted,
+                                4,
+                                colors='black',
+                                extent=(x.min(), x.max(), y.min(), y.max()),
+                                linewidths=0.3)
+                
+                    fig.colorbar(im,ax=ax)
+
+                    V_C = 2 * np.pi * result.best_values['amplitude_1'] * result.best_values['sigma_x_1'] * result.best_values['sigma_y_1']
+                    V_B = 2 * np.pi * result.best_values['amplitude_2'] * result.best_values['sigma_x_2'] * result.best_values['sigma_y_2']
+        
+                    ax.set_title(f"\n BUNCH: [A:{result.best_values['amplitude_2']:.1f},"+r" $\sigma_x$"+f":{result.best_values['sigma_x_2']:.2f},"+r" $\sigma_y$"+f":{result.best_values['sigma_y_2']:.2f}] \n Integral {V_B:.0f} at ["+r"$\theta_x$"+f":{result.best_values['xo_1']:.1f},"+r"$\theta_y$"+f":{result.best_values['yo_1']:.1f}]" +
+                                f"\n CLOUD: [A:{result.best_values['amplitude_1']:.1f},"+r" $\sigma_x$"+f":{result.best_values['sigma_x_1']:.2f},"+r" $\sigma_y$"+f":{result.best_values['sigma_y_1']:.2f}] \n Integral {V_C:.0f} at ["+r"$\theta_x$"+f":{result.best_values['xo_2']:.1f},"+r"$\theta_y$"+f":{result.best_values['yo_2']:.1f}]")
+                    
+                    ax.set_xlabel(r"$\theta_x$")
+                    ax.set_ylabel(r"$\theta_y$")
+
+                    fig.tight_layout()
+
+                    if settings.saving:
+                        lm.model.save_modelresult(result, savefile)
+                        fig.savefig(saveplot, dpi=600)
+                        plt.close(fig)
+                    else:
+                        fig.show()
+                        settings.blockingPlot = True
+                except NameError as e:
+                    print(f"raised Name Error {e}, when generating {file}, this happens when data exists but plot does not")
     if settings.saving:
         with open("{}\\stats.pickle".format(exportDir), 'wb') as handle:
             pickle.dump(stats, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -467,7 +484,6 @@ def generate_report(stats, exportDir):
     th_ax.hist(th, nbins)
     th_ax.set_xlabel("$\phi [^\circ]$ (from x to major axis) mean:{:.2f}  s.d.:{:.2f}".format(
         th.mean(), np.sqrt(th.var())))
-
 
 
     ##
