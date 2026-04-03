@@ -20,6 +20,8 @@ verbose = True #True # [bool] this will toggle printouts in many functions, set 
 
 targetDir = "../example/" #[str] the target root directory saves will go in ./EXPORTED
 
+shortlist = None # this can be set as a list of files to use from targetdir  
+
 start = 0  # [int] the first file to analyse
 
 stop = 1 # [int] the last file to analyse -1 for all
@@ -58,7 +60,7 @@ ignore_regions = []  # [array([[[x1,y1],[x2,y2]]])] list of paird x,y, coordinat
 ]
 """
 
-ignore_ptvs_below = 30  # the peak to mean value ratio above which the image is accepted as having electrons
+ignore_ptvs_below = 12  # the peak to mean value ratio above which the image is accepted as having electrons
 """ The transformation is generated from four known points, 
     pixel values in the first and [x,y,z] in the second  with the laser along z and the target at origin
     [theta, phi] coordinates can be used if the toggle is set to true 
@@ -175,7 +177,7 @@ def assert_reasonable():
 
     if checkTransformation:
         try:
-            assert os.path.exists(pointingCalibrationImage), 'No Calibration Image to Check'
+            assert os.path.exists(os.path.abspath(pointingCalibrationImage)), "No Calibration Image to Check at {}\n".format(os.path.abspath(pointingCalibrationImage))
         except AssertionError as e:
             msg += "\t{}\n".format(e)
             ers = True
