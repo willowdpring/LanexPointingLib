@@ -14,7 +14,7 @@ import math as m
 import matplotlib.pyplot as plt
 import matplotlib.transforms as trans
 import matplotlib.ticker as tick
-from cv2 import getPerspectiveTransform, perspectiveTransform, warpPerspective
+from cv2 import getPerspectiveTransform, perspectiveTransform, warpPerspective, fillConvexPoly
 import pointing2d_settings as settings
 import pointing2d_fit as fit
 import pointing2d_lib
@@ -77,7 +77,7 @@ def getTransform(pixelDataShape,src,dst):
         if settings.verbose: print("Done")
     return warp_transform, weights 
 
-def TransformToThetaPhi(pixelData, src, dst, zoom=5, weighted = True):
+def TransformToThetaPhi(pixelData, src, dst, zoom=1, weighted = True):
     """
     generates a perspective transformation from known points and applys it to the image
 
@@ -118,9 +118,14 @@ def TransformToThetaPhi(pixelData, src, dst, zoom=5, weighted = True):
 
     pixelData = np.multiply(pixelData,weights)
 
-
     if settings.verbose: print("Transforming Image")
+
     out_im = warpPerspective(pixelData, warp_transform, (dstmax[0], dstmax[1]))
+    
+    # Baris Fix:
+    #weights_out = warpPerspective(weights, warp_transform, (dstmax[0], dstmax[1]))
+    #out_im = out_im*weights_out
+
     if settings.verbose: print("Done")
 
     return (out_im, axis)
@@ -195,8 +200,8 @@ def GenerateWeightArray(pixelDataShape, warp_transform, plotting = False):
     weights : 2d array
         the grid of pixel weights
     """
-    num_x_samples = 200
-    num_y_samples = 160
+    num_x_samples = int((pixelDataShape[0]/5)-2)
+    num_y_samples = int((pixelDataShape[1]/5)-2)
 
     x_len = pixelDataShape[0]
     y_len = pixelDataShape[1]
@@ -478,6 +483,8 @@ def check_integration(pixelData,
                       resolution,
                       zoom_radius,
                       saveDir=None):
+    
+    
     """
     a function for checking the integral preservation of a generated bunch-like gaussian under the transformation generated from the known points
 
@@ -502,8 +509,8 @@ def check_integration(pixelData,
     # Generate test image:
     xary = np.linspace(0, pixelData.shape[0], pixelData.shape[0], endpoint=True)
     yary = np.linspace(0, pixelData.shape[1], pixelData.shape[1], endpoint=True)
-    sx = 120
-    sy  = 130
+    sx = (pixelData.shape[0]/10)
+    sy = (pixelData.shape[1]/10)
     th = 35
     untransformed_data = np.array([[fit.lm_gaus2d(x_v, y_v, amplitude=1, offset=0, xo=0.5*pixelData.shape[0], yo=0.5*pixelData.shape[1], theta=th, sigma_x=sx, sigma_y=sy) for y_v in yary] for x_v in xary])
  
@@ -511,6 +518,164 @@ def check_integration(pixelData,
     transformed, axis = TransformToThetaPhi(untransformed_data,
                                                         np.array(src, np.float32),
                                                         np.array(dst, np.float32))
+
+
+    # transform and plot:
+    fig, ax = check_transformation(untransformed_data,
+                         src,dst,units,resolution,zoom_radius,saveDir)
+
+        
+    # --- Get the warp matrix and weights
+    warp_transform, weights = getTransform(pixelData.shape, src, dst)
+
+    # --- Find peak in untransformed image
+    Y_max, X_max = np.unravel_index(np.argmax(untransformed_data), untransformed_data.shape)
+
+    delta = int(np.min([
+        10,
+        untransformed_data.shape[0] - Y_max - 1,
+        untransformed_data.shape[1] - X_max - 1,
+        Y_max,
+        X_max
+    ]))
+
+    # --- 4 corners of patch in pixel space (shape: 1, 4, 2) for cv2.perspectiveTransform
+    corners = np.float32([[
+        [X_max - delta, Y_max - delta],  # top-left
+        [X_max + delta, Y_max - delta],  # top-right
+        [X_max + delta, Y_max + delta],  # bottom-right
+        [X_max - delta, Y_max + delta],  # bottom-left
+    ]])
+
+    # --- Map corners through the perspective warp into theta-phi space (still in theta-phi units)
+    mapped_tp = perspectiveTransform(corners, warp_transform)[0]  # shape: (4, 2)
+
+    print(f"Peak pixel coords      : ({X_max}, {Y_max})")
+    print(f"Corners in pixel space :\n{corners[0]}")
+    print(f"Mapped to theta-phi    :\n{mapped_tp}")
+    print(f"axis (origin px)       : {axis}")
+    print(f"transformed.shape      : {transformed.shape}")
+
+    # --- Convert theta-phi coords → pixel coords in transformed image
+    # From check_transformation: x_px = tp_x * resolution + axis[0]
+    #                            y_px = axis[1] - tp_y * resolution   (y flipped: phi increases downward in array)
+    mapped_px = np.zeros_like(mapped_tp)
+    mapped_px[:, 0] = mapped_tp[:, 0] * resolution + axis[0]
+    mapped_px[:, 1] = axis[1] - mapped_tp[:, 1] * resolution
+
+    print(f"Mapped to image pixels :\n{mapped_px}")
+    print(f"  x range: [{mapped_px[:,0].min():.1f}, {mapped_px[:,0].max():.1f}]  (image width: {transformed.shape[1]})")
+    print(f"  y range: [{mapped_px[:,1].min():.1f}, {mapped_px[:,1].max():.1f}]  (image height: {transformed.shape[0]})")
+
+    # --- Draw patches on the existing figure axes
+    import matplotlib.patches as mpatches
+    from matplotlib.patches import Polygon as MplPolygon
+
+    # ax[0]: raw image — draw rectangle around the peak patch
+    rect = mpatches.Rectangle(
+        (X_max - delta, Y_max - delta), 2 * delta, 2 * delta,
+        linewidth=2, edgecolor='red', facecolor='none', label='patch'
+    )
+    ax[0].add_patch(rect)
+    ax[0].plot(X_max, Y_max, 'r+', markersize=10)
+    ax[0].set_title("Raw Data  [peak @ ({},{})]".format(X_max, Y_max))
+
+    # ax[1] and ax[2]: transformed image — draw the mapped quadrilateral
+    for axis_idx in [1, 2]:
+        poly = MplPolygon(
+            mapped_px, closed=True,
+            linewidth=2, edgecolor='red', facecolor='none', label='mapped patch'
+        )
+        ax[axis_idx].add_patch(poly)
+        cx = np.mean(mapped_px[:, 0])
+        cy = np.mean(mapped_px[:, 1])
+        ax[axis_idx].plot(cx, cy, 'r+', markersize=10)
+
+    fig.canvas.draw()
+
+    # --- Untransformed patch sum
+    untransformed_patch = np.sum(
+        untransformed_data[
+            Y_max - delta : Y_max + delta,
+            X_max - delta : X_max + delta
+        ]
+    )
+
+    # --- Weights in patch
+    weights_patch = weights[
+        Y_max - delta : Y_max + delta,
+        X_max - delta : X_max + delta
+    ]
+    print(f"Weights in patch — min: {weights_patch.min():.4f}, max: {weights_patch.max():.4f}, mean: {weights_patch.mean():.4f}")
+
+    # --- Transformed patch (quadrilateral mask) — only attempt sum if corners are in bounds
+    pts = np.int32(mapped_px).reshape(-1, 2)
+    in_bounds = (
+        pts[:, 0].min() >= 0 and pts[:, 0].max() < transformed.shape[1] and
+        pts[:, 1].min() >= 0 and pts[:, 1].max() < transformed.shape[0]
+    )
+
+    if in_bounds:
+        mask = np.zeros(transformed.shape[:2], dtype=np.uint8)
+        fillConvexPoly(mask, pts, 1)
+        transformed_patch = np.sum(transformed[mask == 1])
+    else:
+        transformed_patch = float('nan')
+        print("WARNING: mapped patch corners fall outside transformed image — check axis convention or resolution")
+
+    # --- Report
+    global_ratio = np.sum(transformed) / np.sum(untransformed_data)
+    patch_ratio = transformed_patch / untransformed_patch if untransformed_patch != 0 else float('nan')
+    print(f"Patch untransformed sum : {untransformed_patch:.4f}")
+    print(f"Patch transformed sum   : {transformed_patch:.4f}")
+    print(f"Patch integral ratio    : {patch_ratio:.4f}  (global ratio: {global_ratio:.4f})")
+
+    fig.suptitle("Integration Ratio : {:.4f}  |  Patch Ratio : {:.4f}".format(global_ratio, patch_ratio))
+
+
+
+
+def check_integrationOLD(pixelData,
+                      src,
+                      dst,
+                      units,
+                      resolution,
+                      zoom_radius,
+                      saveDir=None):
+    """
+    a function for checking the integral preservation of a generated bunch-like gaussian under the transformation generated from the known points
+
+    Parameters
+    ----------
+    pixelData : str 
+        the absolute path to the calibration image to be tested
+    src: np.array([int,int])
+        src points in pixel value, start top right, clockwise 
+    dst: np.array([t,p])
+        destination points in theta phi
+    units: int
+        units/radian (typically 1000)
+    resolution: int
+        pixels/unit (typically 10)
+    zoom_radius: int
+        number of units to plot out from origin (laser/z axis)
+    save_dir: str
+        absolute path to saving directory or None if not saving
+    """
+
+    # Generate test image:
+    xary = np.linspace(0, pixelData.shape[0], pixelData.shape[0], endpoint=True)
+    yary = np.linspace(0, pixelData.shape[1], pixelData.shape[1], endpoint=True)
+    sx = (pixelData.shape[0]/10)
+    sy = (pixelData.shape[1]/10)
+    th = 35
+    untransformed_data = np.array([[fit.lm_gaus2d(x_v, y_v, amplitude=1, offset=0, xo=0.5*pixelData.shape[0], yo=0.5*pixelData.shape[1], theta=th, sigma_x=sx, sigma_y=sy) for y_v in yary] for x_v in xary])
+ 
+    # transform it:
+    transformed, axis = TransformToThetaPhi(untransformed_data,
+                                                        np.array(src, np.float32),
+                                                        np.array(dst, np.float32))
+
 
     # transform and plot:
     fig, ax = check_transformation(untransformed_data,
@@ -523,6 +688,66 @@ def check_integration(pixelData,
     print("ratios:\n\tsize: {}\n\t sum: {}".format(transformed.shape[0]*transformed.shape[1]/(untransformed_data.shape[0]*untransformed_data.shape[1]), np.sum(transformed)/np.sum(untransformed_data)))
 
     fig.suptitle("Integration Ratio : {}".format(np.sum(transformed)/np.sum(untransformed_data)))
+
+# --- Get the warp matrix and weights
+    warp_transform, weights = getTransform(pixelData.shape, src, dst)
+
+    # --- Find peak in untransformed image
+    Y_max, X_max = np.unravel_index(np.argmax(untransformed_data), untransformed_data.shape)
+
+    delta = int(np.min([
+        10,
+        untransformed_data.shape[0] - Y_max - 1,
+        untransformed_data.shape[1] - X_max - 1,
+        Y_max,
+        X_max
+    ]))
+
+    # --- 4 corners of patch in pixel space (shape: 1, 4, 2) for cv2.perspectiveTransform
+    corners = np.float32([[
+        [X_max - delta, Y_max - delta],  # top-left
+        [X_max + delta, Y_max - delta],  # top-right
+        [X_max + delta, Y_max + delta],  # bottom-right
+        [X_max - delta, Y_max + delta],  # bottom-left
+    ]])
+
+    # --- Map corners through the perspective warp into theta-phi space
+    mapped_tp = perspectiveTransform(corners, warp_transform)[0]  # shape: (4, 2), units: theta-phi
+
+    # --- Convert theta-phi coords → pixel coords in transformed image
+    mapped_px = np.zeros_like(mapped_tp)
+    mapped_px[:, 0] = mapped_tp[:, 0] * resolution + axis[0]
+    mapped_px[:, 1] = transformed.shape[0] - (mapped_tp[:, 1] * resolution + axis[1])
+
+    # --- Untransformed patch (rectangular, direct slice)
+    untransformed_patch = np.sum(
+        untransformed_data[
+            Y_max - delta : Y_max + delta,
+            X_max - delta : X_max + delta
+        ]
+    )
+
+    # --- Corresponding weights patch (same slice)
+    weights_patch = weights[
+        Y_max - delta : Y_max + delta,
+        X_max - delta : X_max + delta
+    ]
+    print(f"Weights in patch — min: {weights_patch.min():.4f}, max: {weights_patch.max():.4f}, mean: {weights_patch.mean():.4f}")
+
+    # --- Transformed patch (quadrilateral mask)
+    mask = np.zeros(transformed.shape[:2], dtype=np.uint8)
+    pts = np.int32(mapped_px).reshape(-1, 2)
+    fillConvexPoly(mask, pts, 1)
+    transformed_patch = np.sum(transformed[mask == 1])
+
+    # --- Report
+    global_ratio = np.sum(transformed) / np.sum(untransformed_data)
+    patch_ratio = transformed_patch / untransformed_patch if untransformed_patch != 0 else float('nan')
+    print(f"Patch untransformed sum : {untransformed_patch:.4f}")
+    print(f"Patch transformed sum   : {transformed_patch:.4f}")
+    print(f"Patch integral ratio    : {patch_ratio:.4f}  (global ratio: {global_ratio:.4f})")
+
+
 
     if not settings.saving:
         settings.blockingPlot = True
@@ -814,7 +1039,7 @@ def check_lanex_transformation(pixelData,
 
 
 def main(input_deck_path=None): 
-    pointing2d_lib.update_user_settings(input_deck_path=None)
+    pointing2d_lib.update_user_settings(input_deck_path)
     
     if settings.assert_reasonable():
         src, dst = src_dst_from_known_points(settings.known_points, 
@@ -828,13 +1053,13 @@ def main(input_deck_path=None):
         
         pixelData = np.array(PIL.Image.open(settings.pointingCalibrationImage))
         
-        check_transformation(pixelData,
-                            src,
-                            dst,
-                            settings.units,
-                            settings.resolution,
-                            settings.zoom_radius,
-                            saveDir=None)
+        #check_transformation(pixelData,
+        #                    src,
+        #                    dst,
+        #                    settings.units,
+        #                    settings.resolution,
+        #                    settings.zoom_radius,
+        #                    saveDir=None)
         
         check_integration(pixelData,
                             src,

@@ -306,8 +306,6 @@ def integrate_circular_patch(arr, center, radius):
 
     return integral
 
-
-
 def clean_image_plate(file,alt = True, crop=[[0,-1],[0,-1]], bkg_scale = 1):
     im_dat = np.array(Image.open(file),dtype = np.float64)[crop[0][0]:crop[0][1],crop[1][0]:crop[1][1]]
     im_dat = im_dat[:,::-1]
@@ -325,7 +323,10 @@ def clean_image_plate(file,alt = True, crop=[[0,-1],[0,-1]], bkg_scale = 1):
                                  ['slope'],
                                  ['signal']], figsize = (9,12), height_ratios = [1,0.5,1])
 
-    fig.suptitle(file.split('/')[-1].split('\\')[-1].split('-')[1].replace("_", ' '))
+    try:
+        fig.suptitle(file.split('/')[-1].split('\\')[-1].split('-')[1].replace("_", ' '))
+    except IndexError:
+        fig.suptitle(file)
 
     ax['slope'].plot(np.multiply(slope_n_e,electron_charge))
     ax['slope'].set_yscale('log')
@@ -427,191 +428,241 @@ def transform_image(image, transformation_matrix, output_shape):
     
     return transformed_image
 
-
-def plot_overlay_images(image1, image2):
+def plot_overlay_images(image1, image2, tmax = 200, Mmax = 2):
     fig, ax = plt.subplots()
-    plt.subplots_adjust(bottom=0.5)
+    plt.subplots_adjust(bottom=0.6)  # More space for controls
 
     # Initial transformation parameters
     translation_x = 0
     translation_y = 0
     rotation_deg = 0
-    scale_x = 1
-    scale_y = 1
+    scale = 1  # Unified scale parameter
+    flip_horizontal = False
+    flip_vertical = False
+
+    # Store initial values for reset functionality
+    initial_values = {
+        'translation_x': translation_x,
+        'translation_y': translation_y,
+        'rotation_deg': rotation_deg,
+        'scale': scale,
+        'flip_horizontal': flip_horizontal,
+        'flip_vertical': flip_vertical
+    }
 
     # Plot the initial overlay image
-    overlay_image = overlay_images(image1, image2, translation_x, translation_y, rotation_deg, scale_x, scale_y)
+    overlay_image = overlay_images(image1, image2, translation_x, translation_y, rotation_deg, 
+                                 scale, flip_horizontal, flip_vertical)
     im = ax.imshow(overlay_image)
 
-    # Define sliders
-    ax_translation_x = plt.axes([0.1, 0.4, 0.65, 0.03])
-    ax_translation_y = plt.axes([0.1, 0.35, 0.65, 0.03])
-    ax_rotation = plt.axes([0.1, 0.3, 0.65, 0.03])
-    ax_scale_x = plt.axes([0.1, 0.25, 0.65, 0.03])
-    ax_scale_y = plt.axes([0.1, 0.2, 0.65, 0.03])
+    # Define sliders with improved ranges
+    ax_translation_x = plt.axes([0.1, 0.5, 0.6, 0.025])
+    ax_translation_y = plt.axes([0.1, 0.45, 0.6, 0.025])
+    ax_rotation = plt.axes([0.1, 0.4, 0.6, 0.025])
+    ax_scale = plt.axes([0.1, 0.35, 0.6, 0.025])
 
-    slider_translation_x = Slider(ax_translation_x, 'Translation X', -100, 100, valinit=translation_x)
-    slider_translation_y = Slider(ax_translation_y, 'Translation Y', -100, 100, valinit=translation_y)
-    slider_rotation = Slider(ax_rotation, 'Rotation', -180, 180, valinit=rotation_deg)
-    slider_scale_x = Slider(ax_scale_x, 'Scale X', 0.1, 2, valinit=scale_x)
-    slider_scale_y = Slider(ax_scale_y, 'Scale Y', 0.1, 2, valinit=scale_y)
+    slider_translation_x = Slider(ax_translation_x, 'Translation X', -tmax, tmax, valinit=translation_x)
+    slider_translation_y = Slider(ax_translation_y, 'Translation Y', -tmax, tmax, valinit=translation_y)
+    slider_rotation = Slider(ax_rotation, 'Rotation', -10, 10, valinit=rotation_deg)
+    slider_scale = Slider(ax_scale, 'Scale', 1/Mmax, Mmax, valinit=scale)  # Unified scale slider
 
     # Text boxes for direct entry
-    def submit_translation_x(text):
-        slider_translation_x.set_val(float(text))
-    textbox_translation_x = TextBox(plt.axes([0.8, 0.4, 0.1, 0.03]), '', initial=str(translation_x))
-    textbox_translation_x.on_submit(submit_translation_x)
+    def create_textbox_handler(slider, param_name):
+        def submit_handler(text):
+            try:
+                value = float(text)
+                # Clamp values to slider ranges
+                if param_name in ['translation_x', 'translation_y']:
+                    value = max(-2000, min(2000, value))
+                elif param_name == 'rotation_deg':
+                    value = max(-180, min(180, value))
+                elif param_name == 'scale':
+                    value = max(0.1, min(5.0, value))
+                slider.set_val(value)
+            except ValueError:
+                print(f"Invalid input for {param_name}: {text}")
+        return submit_handler
 
-    def submit_translation_y(text):
-        slider_translation_y.set_val(float(text))
-    textbox_translation_y = TextBox(plt.axes([0.8, 0.35, 0.1, 0.03]), '', initial=str(translation_y))
-    textbox_translation_y.on_submit(submit_translation_y)
+    textbox_translation_x = TextBox(plt.axes([0.75, 0.5, 0.08, 0.025]), '', initial=str(translation_x))
+    textbox_translation_x.on_submit(create_textbox_handler(slider_translation_x, 'translation_x'))
 
-    def submit_rotation(text):
-        slider_rotation.set_val(float(text))
-    textbox_rotation = TextBox(plt.axes([0.8, 0.3, 0.1, 0.03]), '', initial=str(rotation_deg))
-    textbox_rotation.on_submit(submit_rotation)
+    textbox_translation_y = TextBox(plt.axes([0.75, 0.45, 0.08, 0.025]), '', initial=str(translation_y))
+    textbox_translation_y.on_submit(create_textbox_handler(slider_translation_y, 'translation_y'))
 
-    def submit_scale_x(text):
-        slider_scale_x.set_val(float(text))
-    textbox_scale_x = TextBox(plt.axes([0.8, 0.25, 0.1, 0.03]), '', initial=str(scale_x))
-    textbox_scale_x.on_submit(submit_scale_x)
+    textbox_rotation = TextBox(plt.axes([0.75, 0.4, 0.08, 0.025]), '', initial=str(rotation_deg))
+    textbox_rotation.on_submit(create_textbox_handler(slider_rotation, 'rotation_deg'))
 
-    def submit_scale_y(text):
-        slider_scale_y.set_val(float(text))
-    textbox_scale_y = TextBox(plt.axes([0.8, 0.2, 0.1, 0.03]), '', initial=str(scale_y))
-    textbox_scale_y.on_submit(submit_scale_y)
+    textbox_scale = TextBox(plt.axes([0.75, 0.35, 0.08, 0.025]), '', initial=str(scale))
+    textbox_scale.on_submit(create_textbox_handler(slider_scale, 'scale'))
 
-    def update(val):
+    # Flip checkboxes using buttons (matplotlib doesn't have native checkboxes)
+    ax_flip_h = plt.axes([0.1, 0.3, 0.12, 0.04])
+    ax_flip_v = plt.axes([0.25, 0.3, 0.12, 0.04])
+    
+    button_flip_h = Button(ax_flip_h, 'Flip H: OFF')
+    button_flip_v = Button(ax_flip_v, 'Flip V: OFF')
+
+    def toggle_flip_horizontal(event):
+        nonlocal flip_horizontal
+        flip_horizontal = not flip_horizontal
+        button_flip_h.label.set_text(f'Flip H: {"ON" if flip_horizontal else "OFF"}')
+        update_image()
+
+    def toggle_flip_vertical(event):
+        nonlocal flip_vertical
+        flip_vertical = not flip_vertical
+        button_flip_v.label.set_text(f'Flip V: {"ON" if flip_vertical else "OFF"}')
+        update_image()
+
+    button_flip_h.on_clicked(toggle_flip_horizontal)
+    button_flip_v.on_clicked(toggle_flip_vertical)
+
+    # Reset button
+    ax_reset = plt.axes([0.4, 0.3, 0.08, 0.04])
+    button_reset = Button(ax_reset, 'Reset')
+
+    def reset_all(event):
+        nonlocal flip_horizontal, flip_vertical
+        # Reset sliders
+        slider_translation_x.reset()
+        slider_translation_y.reset()
+        slider_rotation.reset()
+        slider_scale.reset()
+        
+        # Reset flip states
+        flip_horizontal = initial_values['flip_horizontal']
+        flip_vertical = initial_values['flip_vertical']
+        button_flip_h.label.set_text('Flip H: OFF')
+        button_flip_v.label.set_text('Flip V: OFF')
+        
+        # Reset text boxes
+        textbox_translation_x.set_val(str(initial_values['translation_x']))
+        textbox_translation_y.set_val(str(initial_values['translation_y']))
+        textbox_rotation.set_val(str(initial_values['rotation_deg']))
+        textbox_scale.set_val(str(initial_values['scale']))
+        
+        update_image()
+
+    button_reset.on_clicked(reset_all)
+
+    def update_image():
+        """Helper function to update the displayed image"""
         translation_x = slider_translation_x.val
         translation_y = slider_translation_y.val
         rotation_deg = slider_rotation.val
-        scale_x = slider_scale_x.val
-        scale_y = slider_scale_y.val
+        scale = slider_scale.val
 
-        overlay_image = overlay_images(image1, image2, translation_x, translation_y, rotation_deg, scale_x, scale_y)
+        overlay_image = overlay_images(image1, image2, translation_x, translation_y, rotation_deg, 
+                                     scale, flip_horizontal, flip_vertical)
         im.set_data(overlay_image)
+        
+        # Update text boxes to reflect slider values (useful when sliders are moved)
+        textbox_translation_x.set_val(f"{translation_x:.1f}")
+        textbox_translation_y.set_val(f"{translation_y:.1f}")
+        textbox_rotation.set_val(f"{rotation_deg:.1f}")
+        textbox_scale.set_val(f"{scale:.3f}")
+        
         plt.draw()
 
+    def update(val):
+        update_image()
+
+    # Connect slider events
     slider_translation_x.on_changed(update)
     slider_translation_y.on_changed(update)
     slider_rotation.on_changed(update)
-    slider_scale_x.on_changed(update)
-    slider_scale_y.on_changed(update)
+    slider_scale.on_changed(update)
 
-    # Button to save/print transformation matrix
-    ax_button = plt.axes([0.7, 0.1, 0.1, 0.05])
+    # Enhanced save/print button
+    ax_button = plt.axes([0.7, 0.3, 0.12, 0.04])
     button = Button(ax_button, 'Save/Print')
     
     def save_or_print(event):
-        transformation_matrix = get_transformation_matrix(image1, translation_x, translation_y, rotation_deg, scale_x, scale_y)
-        print("Transformation matrix:")
+        translation_x = slider_translation_x.val
+        translation_y = slider_translation_y.val
+        rotation_deg = slider_rotation.val
+        scale = slider_scale.val
+        
+        transformation_matrix = get_transformation_matrix(image1, translation_x, translation_y, 
+                                                        rotation_deg, scale, scale)
+        print("=" * 50)
+        print("TRANSFORMATION PARAMETERS:")
+        print(f"Translation X: {translation_x:.2f}")
+        print(f"Translation Y: {translation_y:.2f}")
+        print(f"Rotation: {rotation_deg:.2f}°")
+        print(f"Scale: {scale:.3f}")
+        print(f"Flip Horizontal: {flip_horizontal}")
+        print(f"Flip Vertical: {flip_vertical}")
+        print("\nTransformation matrix:")
         print(transformation_matrix)
-        # You can save the transformation matrix to a file or use it as needed
+        print("=" * 50)
         
     button.on_clicked(save_or_print)
 
     plt.show()
 
-def overlay_images(image1, image2, translation_x, translation_y, rotation_deg, scale_x, scale_y):
-    # Apply transformations to image2
-    transformation_matrix = cv2.getRotationMatrix2D((image2.shape[1] / 2, image2.shape[0] / 2), rotation_deg, scale_x)
-    transformation_matrix[:, 2] += [translation_x, translation_y]
-    transformed_image2 = transform_image(image2, transformation_matrix, image1.shape)
 
-    # Overlay images
-    overlay_image = np.zeros((image1.shape[0], image1.shape[1], 3))
-    overlay_image[:, :, 0] = image1 / np.max(image1)  # Red channel
-    overlay_image[:, :, 2] = transformed_image2 / np.max(transformed_image2)  # Blue channel
+def overlay_images(image1, image2, translation_x, translation_y, rotation_deg, scale, 
+                  flip_horizontal=False, flip_vertical=False):
+    """
+    Enhanced overlay function with flip support and unified scaling
+    """
+    # Start with a copy of image2 to avoid modifying the original
+    working_image = image2.copy()
+    
+    # Apply flips first (before other transformations)
+    if flip_horizontal:
+        working_image = cv2.flip(working_image, 1)  # Horizontal flip
+    if flip_vertical:
+        working_image = cv2.flip(working_image, 0)  # Vertical flip
+    
+    # Get image center for rotation
+    center_x = working_image.shape[1] / 2
+    center_y = working_image.shape[0] / 2
+    
+    # Create rotation matrix (without scaling first)
+    rotation_matrix = cv2.getRotationMatrix2D((center_x, center_y), rotation_deg, 1.0)
+    
+    # Apply uniform scaling by directly modifying the transformation matrix
+    rotation_scale_matrix = rotation_matrix.copy()
+    rotation_scale_matrix[0, 0] *= scale  # Scale x-component of x-axis
+    rotation_scale_matrix[0, 1] *= scale  # Scale x-component of y-axis  
+    rotation_scale_matrix[1, 0] *= scale  # Scale y-component of x-axis
+    rotation_scale_matrix[1, 1] *= scale  # Scale y-component of y-axis
+    
+    # Add translation
+    rotation_scale_matrix[0, 2] += translation_x
+    rotation_scale_matrix[1, 2] += translation_y
+    
+    # Apply the complete transformation
+    transformed_image2 = transform_image(working_image, rotation_scale_matrix, image1.shape)
+
+    # Create overlay with improved normalization
+    overlay_image = np.zeros((image1.shape[0], image1.shape[1], 3), dtype=np.float32)
+    
+    # Normalize images safely (avoid division by zero)
+    img1_norm = image1.astype(np.float32)
+    img2_norm = transformed_image2.astype(np.float32)
+    
+    if np.max(img1_norm) > 0:
+        img1_norm = img1_norm / np.max(img1_norm)
+    if np.max(img2_norm) > 0:
+        img2_norm = img2_norm / np.max(img2_norm)
+    
+    overlay_image[:, :, 0] = img1_norm  # Red channel
+    overlay_image[:, :, 2] = img2_norm  # Blue channel
 
     return overlay_image
 
-if __name__ == "__main__": 
-    """
-    counts = np.linspace(2**12,2**16,1000)
-    fig,ax=plt.subplots(1,1)
-    ax.set_title("Comparison of PSL functions")
-    ax.plot(counts,psl(counts),'g',label='original')
-    ax.plot(counts,alt_psl(counts),'r',label='alternate')
-    ax.set_yscale('log')
-    ax.grid('both','both')
-    ax.legend()
-    fig.show()
-    # plot the image plate scan as charge:
-    #imageplate_tif = "D:\\Bunker C\\20230502-chargeCal\\20230502-chargeCal_run003_25um_l5_500PMT-[Phosphor].tif" 
-    #imageplate_gel = "D:\\Bunker C\\20230502-chargeCal\\20230502-chargeCal_run003_25um_l5_500PMT-[Phosphor].gel" 
-    imageplate_tif = "D:\\Bunker C\\Charge_Calibrations\\230707\\20230707-chargeCal_run001_25um_l5_500PMT-[Phosphor].tif" 
+if __name__ == "__main__":
+    plate_file = r"C:\Users\willo\Documents\Lab\Experiments\ELI25\Electrons\reconsructed_imageplate.tiff"
+    plate_im = np.array(Image.open(plate_file),dtype = np.float64)
+    lan_file = r"C:\Users\willo\Documents\Lab\Experiments\ELI25\Electrons\ELI_CC\L1\RunChargeCal\L1-1_16.00.49.890.tif"
+    lan_im = np.array(Image.open(lan_file),dtype = np.float64)
+    # dy = -560, dx = -120, M =2.65
+    # Enable interactive mode
+    plt.ion()
+    plot_overlay_images(plate_im, lan_im)
+    plt.show(block=True)  # Force blocking show
     
-    endpoint = -1
-    """
-
-    imageplate_gel = "D:\\Bunker C\\Charge_Calibrations\\230707\\20230707-chargeCal_run001_25um_l5_500PMT-[Phosphor].gel" 
-    x1 = 3000
-    x2 = -1
-    y1 = 0
-    y2 = 7500
-    crop = [[x1,x2],[y1,y2]]
-
-    for bkg_scale in [0.98,1,1.02]:
-        plate_im = clean_image_plate(imageplate_gel,alt = True, crop = crop, bkg_scale=bkg_scale)
-
-    """  
-    clean_image_plate(imageplate_tif,crop = [[3000,-1],[0,8000]])
-    #integrate lanex images:
-
-    # LANEX:
-    # backfilt.generateAndPlotBackgrounds("D:\\Bunker C\\Charge_Calibrations\\230707\\Lanex_ChargeCal\\BACKGROUND\\")
-
-    l=1288
-    h=822
-
-    cc_src = [[20,63],[74,824],[1212,822],[1260,101]]   # source coordinates for the perspective transformation
-    cc_dst = [[-260,0],[-250,100],[-30,100],[-10,0]]    # destination coordinates for the perspective transformation
-                    
-    n = 0
-    m = -1
-    p_b = 10
-
-    kx = 15
-    ky = 7
-
-    res = 20
-
-    test_data = np.array(Image.open("D:\\Bunker C\\Charge_Calibrations\\230707\\Lanex_ChargeCal\\test\\Espec_calibration2_Marked.tiff"))
-    fig,ax = perspective.check_lanex_transformation(test_data,
-                         cc_src,
-                         cc_dst,
-                         units=0.001,
-                         resolution=res,
-                         saveDir=None)
-
-    cc_dst = np.multiply(cc_dst,res)
-
-    lan_im = integrate_lanex("D:\\Bunker C\\Charge_Calibrations\\230707\\Lanex_ChargeCal\\Good_Shots\\",
-                    include = [n,m], 
-                    lanex_filters = [3,3,5,5,53,53,5,5,3,3], # the size of the sliding window xray filters to apply
-                    percentile = 20, 
-                    bkg_percentile = p_b,
-                    background = "D:\\Bunker C\\Charge_Calibrations\\230707\\Lanex_ChargeCal\\BACKGROUND\\EXPORTED\\AVG_BAK.tiff",
-                    doTransform = True,
-                    src = cc_src,
-                    dst = cc_dst,
-                    kernel = backfilt.norm_gaus2d_ary(kx, 3, ky, 3),
-                    save_each = False,
-                    saveas = "av_bkg_cutoff_{}_Kernel_[{},{}]".format(20,kx,ky)
-                    )
-
-    np.save("./plate_data",plate_im)
-    np.save("./lanex_data",lan_im)
-
-    """
-    
-
-
-#    plate_im = np.load("./plate_data.npy")
-#    lan_im = np.load("./lanex_data.npy")
-#    
-#    plot_overlay_images(plate_im,lan_im)
-
     input("Done?...")
-
