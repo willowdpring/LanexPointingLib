@@ -6,189 +6,212 @@ Created on Thu Dec 15 15:21:22 2022
 
 Configuration of the runtime settings for the program e.g. working directories, backgrounds, etc.
 
-
-These are the default settings. 
+These are the default settings.
 Please pass user settings as a json to main
-
-
-"""
-import os
-
-""" The first settings are for the target directory, the script will try to analyse every *.tiff* and *.tif* file in this directory and subdirectorys;
-"""
-verbose = True #True # [bool] this will toggle printouts in many functions, set to True to enabe logging to terminal and assist debugging 
-
-targetDir = "../example/" #[str] the target root directory saves will go in ./EXPORTED
-
-shortlist = None # this can be set as a list of files to use from targetdir  
-
-start = 0  # [int] the first file to analyse
-
-stop = 1 # [int] the last file to analyse -1 for all
-
-decimate = 1  # [int] the step size
-
-saving = False  # [bool] if True we will save the numpy arrays and png's of the resulting contor plots?
-
-overwrite = False  # [bool] if True we will overwrite existing save data (in the ./EXPORTED/ directory on a file by file basis)
-
-""" Backgrounds are generated from user selected files in a seperate directory 
-    by compressing all the tiff files in that directory along z using a max() and a mean() method  
-"""
-background_dir = "{}\\BACKGROUND".format(targetDir)  # [str] the directory to generate
-
-generate_background_files = False # True  # [bool] if True we will generate /EXPORTED/MAX_BAK.tiff and /EXPORTED/AVG_BAK.tiff in the background folder
-
-background = None # "{}\\EXPORTED\\AVG_BAK.tiff".format(background_dir)  # [str] the file to use as a background
-
-background_clip = 1  # [int] the percentile below which the background data is ignored
-
-background_scale = 1 #[float] a multiplicative factor applied to the background data
-
-plotBackgroundSubtraction = True  # [bool] if True we will generate a plot before and after subtracting the backgtround to check
-
-kernel = "backfilt.norm_gaus2d_ary(12, 3, 12, 3)"  # [string] when evaluated this should make the The convolution kernel applied before background subtraction
-
-filters = [
-    3, 3, 3, 3, 53, 53, 53, 53
-]  # [list[3|5|53]] the sequence of x-ray filters to apply (see backfiltlib.py)
-
-ignore_regions = []  # [array([[[x1,y1],[x2,y2]]])] list of paird x,y, coordinates for rectangles to be ignored # for user defined regions
-"""
-[
-    [[213, 543], [223, 553]], [[20, 495], [120, 555]], [[105, 585], [115, 599]]
-]
 """
 
-ignore_ptvs_below = 12  # the peak to mean value ratio above which the image is accepted as having electrons
-""" The transformation is generated from four known points, 
-    pixel values in the first and [x,y,z] in the second  with the laser along z and the target at origin
-    [theta, phi] coordinates can be used if the toggle is set to true 
+import json
+import sys
+import pathlib
 
-"""
-units = 1000  # units/radian
-
-resolution = 10  # pixels/unit
-
-zoom_radius = 8  # the radius of the analysis box
-
-#pointingCalibrationImage = "C:\\Users\\BunkerC-User\\Documents\\LanexPointingTEST\\230220\\Lanex_in.tiff"
-pointingCalibrationImage = "C:\\Users\\willo\\Documents\\Baris_Lanex\\light-reference.tiff "# "C:/Users/willo/Documents/BunkerC/LanexBeamProfile/HighE_LanexIN.tiff"
-
-dh = 0  # a nudge to vertical offset of the lanex in mm
-dx = 1.5  # a nudge to horizontal offset of the lanex in mm
+# font = {'family': 'Corbel', 'weight': 'normal', 'size': 14}
+# rc('font', **font)
 
 
-"""
-           Lanex
-               \ 
-laser:   theta  \ 
---->o__________/_\_______
-    |            |\ \ < inPlane
-    |<-- onAx -->| 
+class Settings:
+    def __init__(self):
 
-"""
+        # --- Target Directory ---
+        self.verbose = True  # [bool] toggle printouts/logging to terminal
+        self.targetDir = pathlib.Path(
+            "../example/"
+        )  # [path] root dir; saves go in ./EXPORTED
+        self.shortlist = None  # [list|None] specific files to use from targetDir
+        self.start = 0  # [int] first file to analyse
+        self.stop = 1  # [int] last file to analyse, -1 for all
+        self.decimate = 1  # [int] step size
+        self.saving = False  # [bool] save numpy arrays and png contour plots
+        self.overwrite = False  # [bool] overwrite existing save data in ./EXPORTED/
 
-# measurements are taken in horizontal plane of the laser and the heights of the top and bottom corners of the lanex are calculated 
+        # --- Backgrounds ---
+        # Generated from user-selected files in a separate directory by compressing
+        # all tiffs along z using max() and mean() methods
+        self.background_dir = pathlib.Path(
+            "BACKGROUND"
+        )  # [path] subdir for background files
+        self.generate_background_files = False  # [bool] generate MAX_BAK/AVG_BAK tiffs
+        self.background = pathlib.Path(
+            "/EXPORTED/AVG_BAK.tiff"
+        )  # [path] background file
+        self.background_clip = (
+            1  # [int] percentile below which background data is ignored
+        )
+        self.background_scale = (
+            1  # [float] multiplicative factor applied to background data
+        )
+        self.plotBackgroundSubtraction = (
+            True  # [bool] plot before/after background subtraction
+        )
 
-lanex_onAx_dist = 1000 # 1150 # [float] mm distance to the lanex plane in the axis of the laser
+        # --- Filtering ---
+        self.kernel = "backfilt.norm_gaus2d_ary(12, 3, 12, 3)"  # [str] convolution kernel expression
+        self.filters = [3, 3, 3, 3, 53, 53, 53, 53]  # [list] x-ray filter sequence
+        self.ignore_regions = []  # [list] paired x,y rect coords to ignore, e.g:
+        # [[[213,543],[223,553]], [[20,495],[120,555]]]
+        self.ignore_ptvs_below = (
+            12  # [float] peak-to-mean ratio threshold for electron acceptance
+        )
 
-lanex_theta = 0 # 45 # [float] deg angle of the normal of the lanex plane to the laser  
-                 # WARN: this assumes that the lanex plane is vertical and only rotates about z
+        # --- Transformation / Geometry ---
+        # Generated from four known points: pixel coords and [x,y,z] world coords
+        # with laser along z and target at origin. [theta,phi] coords available if toggled.
+        self.units = 1000  # [float] units/radian
+        self.resolution = 10  # [float] pixels/unit
+        self.zoom_radius = 8  # [float] radius of the analysis box
+        self.pointingCalibrationImage = pathlib.Path("./EXAMPLES/AirLanex_330.tiff")
+        self.dh = 0  # [float] nudge to vertical lanex offset (mm)
+        self.dx = 0  # [float] nudge to horizontal lanex offset (mm)
 
-lanex_inPlane_dist = 0 # -50 # [float] mm distance of the edge of the lanex (0mm ruler mark) 
-                         # from the axis in the plane of the lanex -ve implies that the laser axes intersects the lanex
-                                         
-lanex_height = 50 # 180 # [float] mm height of the lanex screen
+        # --- Lanex Geometry ---
+        #            Lanex
+        #                \
+        # laser:  theta   \
+        # --->o__________/_\_______
+        #     |            |\ \ < inPlane
+        #     |<-- onAx -->|
+        #
+        # Measurements taken in horizontal plane of laser;
+        # top/bottom corner heights are calculated from these.
+        self.lanex_onAx_dist = (
+            1000  # [float] mm distance to lanex plane along laser axis
+        )
+        self.lanex_theta = 0  # [float] deg angle of lanex normal to laser
+        # WARN: assumes lanex is vertical, rotates about z only
+        self.lanex_inPlane_dist = (
+            0  # [float] mm distance of lanex edge (0mm mark) from axis
+        )
+        # in lanex plane; -ve means laser axis intersects lanex
+        self.lanex_height = 50  # [float] mm height of lanex screen
+        self.lanex_vertical_offset = (
+            0  # [float] mm height of lanex centre plane from laser plane
+        )
 
-lanex_vertical_offset = 0 # [float] mm height of the center plane of the lanex from the plane of the laser 
+        # Known points: four lanex corners in pixel space then world space
+        self.known_points = [
+            [
+                [129.500, 187.500],
+                [79.000, 176.000],
+                [61.500, 343.000],
+                [129.500, 281.000],
+            ],
+            [[20.705, 17.029], [13.406, 14.304], [9.381, 22.318], [20.015, 22.058]],
+        ]
+        
+        #   padding of the image around the known points wrt the axis (lpad, tpad, rpad, bpad) = settings.src_padding * zoom
+        self.dst_padding = [1.1,1.1]
+        self.dst_layout = (
+            None  # placeholder for output image dims
+        )       
+        self.transformation = (
+            None  # placeholder for transformation matrices
+        )
+        self.transformation_weights = (
+            None  # placeholder for normalisation matrices
+        )
+        self.in_theta_phi = (
+            False  # [bool] if True, known_points are in spherical coords
+        )
+        self.checkTransformation = True  # [bool] generate plot to check transformation
+        self.blockingPlot = (
+            False  # [bool] prevent plots closing immediately when not saving
+        )
 
-# Known points is a dict of four lanex corners as keys 
-# and 3 element arrays as entries: [mm Mark on ruler, pixel X coord, pixel Y coord]
-"""
-# these are for Feb \\230220\\Lanex_in.tiff
-known_points = {'TR': [0,1180,130],  # TR - Top Right 
-                'BL': [280,213,942], # BL - Bottom Left
-                'BR': [0,1159,877],  # BR - Bottom right
-                'TL': [290,95,79]    # TL - Top Left
-                }
+    def update_user_settings(self, input_deck_path=None):
+        """Load settings from a JSON file, resolving relative paths against the JSON's directory."""
+        if input_deck_path is None:
+            if len(sys.argv) > 1:
+                input_deck_path = sys.argv[1]
+            else:
+                print("Warning: No input deck file provided,\nRunning Example Input")
+                print("Usage: python pointing2d_main.py <input_deck_path>")
+                input_deck_path = "EXAMPLES/LPL_Settings.json"
 
-# these are for December \\
-known_points = {'TR': [0,891, 91],  # TR - Top Right 
-                'BL': [160,346, 950], # BL - Bottom Left
-                'BR': [0,873, 882],  # BR - Bottom right
-                'TL': [230,25,23]    # TL - Top Left
-                }
+        input_deck_path = pathlib.Path(input_deck_path).resolve()
+        input_deck_dir = input_deck_path.parent
 
-"""
+        print(f"running with {input_deck_path=}")
 
-known_points = [
-                [[129.500,187.500], [79.000,176.000], [61.500,343.000], [129.500,281.000]],
-                [[20.705,17.029],[13.406,14.304], [9.381,22.318], [20.015,22.058]]
-                ]
+        with open(input_deck_path, "r") as f:
+            input_deck = json.load(f)
 
-"""
+        PATH_PREFIX = "path:"
 
-(Px,PY) -> (Lx,Ly)
+        for setting_name, setting_value in input_deck.items():
+            if setting_name.startswith("_"):
+                continue
+            if hasattr(self, setting_name):
+                if isinstance(setting_value, str) and setting_value.startswith(
+                    PATH_PREFIX
+                ):
+                    candidate = pathlib.Path(setting_value[len(PATH_PREFIX) :])
+                    setting_value = (input_deck_dir / candidate).resolve()
+                setattr(self, setting_name, setting_value)
+            else:
+                print(f"Warning: {setting_name} not found in settings.")
 
-[
-    #[ [P_X, P_Y] , [X,Y,Z], 'note']
-    [[891, 91], [14.27 + dx, -91 + dh, 1303.46], "top right - 0 on the ruler"],
-    [[873, 882], [14.27 + dx, 91 + dh, 1303.46], "bottom right - 0 on the ruler"],
-    [[25, 23], [-181.83 + dx, -91 + dh, 1076.43], "top left - 23cm along"],
-    [[346, 950], [-90.38 + dx, 91 + dh, 1182.38], "bottom left - 16cm along"]
-]
-"""
+    def assert_reasonable(self):
+        """Validate that the current settings point to real files/directories."""
+        ers = False
+        msg = "Settings are NOT reasonable: \n  detected errors:\n"
 
-transformation = None # this is a placeholder for a variable that will contain the transformation and normalisation matricies during runttime
-
-in_theta_phi = False  # [bool] if True the known points are given in spherical coords (without radius)
-
-checkTransformation = True  # [bool] if True a plot will be generated to check the generated transformation
-
-blockingPlot = False   # [bool] this is here to stop plots from closing immediatly if you are not saving them
-
-def assert_reasonable():
-    ers = False
-    msg = "Settings are NOT reasonable: \n  detected errors:\n"
-    try:
-        assert os.path.exists(targetDir), 'No Target Directory'
-    except AssertionError as e:
-        msg += "\t{}\n".format(e)
-        ers = True
-    if background is not None:
         try:
-            assert os.path.exists(background), 'Background file doesn\'t exist'
-        except AssertionError as e:
-            msg += "\t{}\n".format(e)
-            ers = True
-        try:
-            assert background_clip < 100 and  background_clip >= 0, 'background_clip should be in range 0-100'
-        except AssertionError as e:
-            msg += "\t{}\n".format(e)
-            ers = True
-
-    if generate_background_files:
-        try:
-            assert os.path.exists(background_dir), 'No Target Background Directory for Generating new Averages'
+            assert self.targetDir.exists(), "No Target Directory"
         except AssertionError as e:
             msg += "\t{}\n".format(e)
             ers = True
 
-    if checkTransformation:
-        try:
-            assert os.path.exists(os.path.abspath(pointingCalibrationImage)), "No Calibration Image to Check at {}\n".format(os.path.abspath(pointingCalibrationImage))
-        except AssertionError as e:
-            msg += "\t{}\n".format(e)
-            ers = True
+        if self.background is not None:
+            try:
+                assert self.background.exists(), "Background file doesn't exist"
+            except AssertionError as e:
+                msg += "\t{}\n".format(e)
+                ers = True
+            try:
+                assert (
+                    0 <= self.background_clip < 100
+                ), "background_clip should be in range 0-100"
+            except AssertionError as e:
+                msg += "\t{}\n".format(e)
+                ers = True
 
-    if ers == 0:
-        return(True)
-    else:
-        msg += "please edit the input JSON and try again"
-        print(msg)
-        return(False)
+        if self.generate_background_files:
+            try:
+                assert (
+                    self.background_dir.exists()
+                ), "No Target Background Directory for Generating new Averages"
+            except AssertionError as e:
+                msg += "\t{}\n".format(e)
+                ers = True
 
+        if self.checkTransformation:
+            cal_path = self.pointingCalibrationImage.resolve()
+            try:
+                assert (
+                    cal_path.exists()
+                ), f"No Calibration Image to Check at {cal_path}\n"
+            except AssertionError as e:
+                msg += "\t{}\n".format(e)
+                ers = True
+
+        if not ers:
+            return True
+        else:
+            msg += "please edit the input JSON and try again"
+            print(msg)
+            return False
+
+
+settings = Settings()
 
 if __name__ == "__main__":
-    assert_reasonable()
+    settings.assert_reasonable()

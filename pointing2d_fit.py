@@ -11,11 +11,12 @@ A library for fiting 2 dimensional gausians to 2d arrays
 import numpy as np
 import lmfit as lm
 import matplotlib.pyplot as plt
-import pointing2d_settings as settings
+from pointing2d_settings import settings
+
 
 def lm_gaus2d(x, y, amplitude, offset, xo, yo, theta, sigma_x, sigma_y):
     """
-    a 2d gaussian function 
+    a 2d gaussian function
     Parameters
     ----------
     x : float
@@ -47,19 +48,33 @@ def lm_gaus2d(x, y, amplitude, offset, xo, yo, theta, sigma_x, sigma_y):
     theta = np.radians(theta)
     sigx2 = sigma_x**2
     sigy2 = sigma_y**2
-    a = np.cos(theta)**2 / (2 * sigx2) + np.sin(theta)**2 / (2 * sigy2)
-    b = np.sin(theta)**2 / (2 * sigx2) + np.cos(theta)**2 / (2 * sigy2)
+    a = np.cos(theta) ** 2 / (2 * sigx2) + np.sin(theta) ** 2 / (2 * sigy2)
+    b = np.sin(theta) ** 2 / (2 * sigx2) + np.cos(theta) ** 2 / (2 * sigy2)
     c = np.sin(2 * theta) / (4 * sigx2) - np.sin(2 * theta) / (4 * sigy2)
 
-    expo = -a * (x - xo)**2 - b * (y - yo)**2 - 2 * c * (x - xo) * (y - yo)
-    return (amplitude * np.exp(expo) + offset)
+    expo = -a * (x - xo) ** 2 - b * (y - yo) ** 2 - 2 * c * (x - xo) * (y - yo)
+    return amplitude * np.exp(expo) + offset
 
 
-def lm_double_gaus2d(x, y, amplitude_1, offset, xo_1, yo_1, theta_1, sigma_x_1,
-                     sigma_y_1, amplitude_2, xo_2, yo_2, theta_2, sigma_x_2,
-                     sigma_y_2):
+def lm_double_gaus2d(
+    x,
+    y,
+    amplitude_1,
+    offset,
+    xo_1,
+    yo_1,
+    theta_1,
+    sigma_x_1,
+    sigma_y_1,
+    amplitude_2,
+    xo_2,
+    yo_2,
+    theta_2,
+    sigma_x_2,
+    sigma_y_2,
+):
     """
-    a sum of two 2d gaussians 
+    a sum of two 2d gaussians
     Parameters
     ----------
     x : float
@@ -78,30 +93,30 @@ def lm_double_gaus2d(x, y, amplitude_1, offset, xo_1, yo_1, theta_1, sigma_x_1,
 
     sigx2_1 = sigma_x_1**2
     sigy2_1 = sigma_y_1**2
-    a_1 = np.cos(theta_1)**2 / (2 * sigx2_1) + np.sin(theta_1)**2 / (2 *
-                                                                     sigy2_1)
-    b_1 = np.sin(theta_1)**2 / (2 * sigx2_1) + np.cos(theta_1)**2 / (2 *
-                                                                     sigy2_1)
-    c_1 = np.sin(2 * theta_1) / (4 * sigx2_1) - np.sin(
-        2 * theta_1) / (4 * sigy2_1)
-    expo_1 = -a_1 * (x - xo_1)**2 - b_1 * (y - yo_1)**2 - 2 * c_1 * (
-        x - xo_1) * (y - yo_1)
+    a_1 = np.cos(theta_1) ** 2 / (2 * sigx2_1) + np.sin(theta_1) ** 2 / (2 * sigy2_1)
+    b_1 = np.sin(theta_1) ** 2 / (2 * sigx2_1) + np.cos(theta_1) ** 2 / (2 * sigy2_1)
+    c_1 = np.sin(2 * theta_1) / (4 * sigx2_1) - np.sin(2 * theta_1) / (4 * sigy2_1)
+    expo_1 = (
+        -a_1 * (x - xo_1) ** 2
+        - b_1 * (y - yo_1) ** 2
+        - 2 * c_1 * (x - xo_1) * (y - yo_1)
+    )
     g_1 = amplitude_1 * np.exp(expo_1)
 
     theta_2 = np.radians(theta_2)
     sigx2_2 = sigma_x_2**2
     sigy2_2 = sigma_y_2**2
-    a_2 = np.cos(theta_2)**2 / (2 * sigx2_2) + np.sin(theta_2)**2 / (2 *
-                                                                     sigy2_2)
-    b_2 = np.sin(theta_2)**2 / (2 * sigx2_2) + np.cos(theta_2)**2 / (2 *
-                                                                     sigy2_2)
-    c_2 = np.sin(2 * theta_2) / (4 * sigx2_2) - np.sin(
-        2 * theta_2) / (4 * sigy2_2)
-    expo_2 = -a_2 * (x - xo_2)**2 - b_2 * (y - yo_2)**2 - 2 * c_2 * (
-        x - xo_2) * (y - yo_2)
+    a_2 = np.cos(theta_2) ** 2 / (2 * sigx2_2) + np.sin(theta_2) ** 2 / (2 * sigy2_2)
+    b_2 = np.sin(theta_2) ** 2 / (2 * sigx2_2) + np.cos(theta_2) ** 2 / (2 * sigy2_2)
+    c_2 = np.sin(2 * theta_2) / (4 * sigx2_2) - np.sin(2 * theta_2) / (4 * sigy2_2)
+    expo_2 = (
+        -a_2 * (x - xo_2) ** 2
+        - b_2 * (y - yo_2) ** 2
+        - 2 * c_2 * (x - xo_2) * (y - yo_2)
+    )
     g_2 = amplitude_2 * np.exp(expo_2)
 
-    return (offset+np.add(g_1, g_2))
+    return offset + np.add(g_1, g_2)
 
 
 def gaus(x, a, ux, s, c):
@@ -110,9 +125,9 @@ def gaus(x, a, ux, s, c):
 
     Parameters
     ----------
-    x : float 
+    x : float
         sample point
-    a : float 
+    a : float
         amplitude
     ux : float
         mean
@@ -126,8 +141,8 @@ def gaus(x, a, ux, s, c):
     intensity : float
         the amplitude of the gaussians at x
     """
-    g = a * np.exp(-((x - ux) * s)**2 / s**2) + c
-    return (g)
+    g = a * np.exp(-(((x - ux) * s) ** 2) / s**2) + c
+    return g
 
 
 def linear(x, a, c):
@@ -135,11 +150,11 @@ def linear(x, a, c):
     a linear function
     Parameters
     ----------
-    x : float 
+    x : float
         sample point
-    a : float 
-        coeficint of x    
-    c : float 
+    a : float
+        coeficint of x
+    c : float
         constant
 
     Returns
@@ -147,12 +162,12 @@ def linear(x, a, c):
     y : float
         sample at x
     """
-    return (np.multiply(x, a) + c)
+    return np.multiply(x, a) + c
 
 
 def getest2DGF(x, y, I):
     """
-    estimates parameters for a 2d gaussian fit 
+    estimates parameters for a 2d gaussian fit
 
     SEE https://www.astro.rug.nl/~vogelaar/Gaussians2D/2dgaussians.html
         Given the meshgrid (Xg,Yg) in x and y and the image intensities on that grid in I
@@ -160,12 +175,12 @@ def getest2DGF(x, y, I):
         calculate the semi major axis length (1 sigma) and semi minor axis legth (1 sigma) and
         the angle between the major axis and the positive x axis measured counter clockwise.
         If values a, b and c do not comply to the conditions for an ellipse, then return None.
-        The calling environment should check the return value   
+        The calling environment should check the return value
 
     Parameters
     ----------
     x : np.meshgrid of x coordinates
-    y : np.meshgrid of y coordinates 
+    y : np.meshgrid of y coordinates
     I : the image data to fit
 
     Returns
@@ -205,9 +220,9 @@ def getest2DGF(x, y, I):
     Ny = y[:, 0].size
     dx = abs(x[0, 0] - x[0, -1]) / Nx
     dy = abs(y[0, 0] - y[-1, -1]) / Ny
-    A = dx * dy * M0 * (a * b - c * c)**0.5 / np.pi
+    A = dx * dy * M0 * (a * b - c * c) ** 0.5 / np.pi
 
-    p = ((a - b)**2 + 4 * c * c)**0.5
+    p = ((a - b) ** 2 + 4 * c * c) ** 0.5
     theta = np.degrees(0.5 * np.arctan(2 * c / (a - b)))
     if a - b > 0:  # Not HW1 but the largest axis corresponds to theta.
         theta += 90.0
@@ -215,8 +230,8 @@ def getest2DGF(x, y, I):
         theta += 180
 
     # Major and minor axis lengths
-    major = (1 / (a + b - p))**0.5
-    minor = (1 / (a + b + p))**0.5
+    major = (1 / (a + b - p)) ** 0.5
+    minor = (1 / (a + b + p)) ** 0.5
     sx = major
     sy = minor
     ofe = np.percentile(I, 20)
@@ -225,7 +240,7 @@ def getest2DGF(x, y, I):
 
 def getestdbl2DGF(x, y, I):
     """
-    estimates parameters for the summation of two a 2d gaussian fit 
+    estimates parameters for the summation of two a 2d gaussian fit
 
     ASSUMPTION:
     the first gaussian (_1) is a large background signal
@@ -234,8 +249,8 @@ def getestdbl2DGF(x, y, I):
     Parameters
     ----------
     x : np.meshgrid of x coordinates
-    y : np.meshgrid of y coordinates 
-    I : the image data to fit   
+    y : np.meshgrid of y coordinates
+    I : the image data to fit
     Returns
     -------
     A1 ofe, x01, y01, sx1, sy1, theta1, A2, x02, y02
@@ -258,7 +273,7 @@ def getestdbl2DGF(x, y, I):
         the estimated amplitude of the first gaussian
     x02 : float
         the estimated x coordinate of the peak of the second gaussian
-    y02 : float    
+    y02 : float
         the estimated y coordinate of the peak of the second gaussian
     """
 
@@ -280,9 +295,9 @@ def getestdbl2DGF(x, y, I):
     Ny1 = y[:, 0].size
     dx1 = abs(x[0, 0] - x[0, -1]) / Nx1
     dy1 = abs(y[0, 0] - y[-1, -1]) / Ny1
-    A1 = dx1 * dy1 * M0 * (a1 * b1 - c1 * c1)**0.5 / np.pi
+    A1 = dx1 * dy1 * M0 * (a1 * b1 - c1 * c1) ** 0.5 / np.pi
 
-    p1 = ((a1 - b1)**2 + 4 * c1 * c1)**0.5
+    p1 = ((a1 - b1) ** 2 + 4 * c1 * c1) ** 0.5
     theta1 = np.degrees(0.5 * np.arctan(2 * c1 / (a1 - b1)))
     if a1 - b1 > 0:  # Not HW1 but the largest axis corresponds to theta.
         theta1 += 90.0
@@ -290,8 +305,8 @@ def getestdbl2DGF(x, y, I):
         theta1 += 180
 
     # Major and minor axis lengths
-    major1 = (1 / (a1 + b1 - p1))**0.5
-    minor1 = (1 / (a1 + b1 + p1))**0.5
+    major1 = (1 / (a1 + b1 - p1)) ** 0.5
+    minor1 = (1 / (a1 + b1 + p1)) ** 0.5
     sx1 = major1
     sy1 = minor1
 
@@ -311,8 +326,8 @@ def fit_gauss2d_lm(x2, y2, z, fmodel):
     Parameters
     ----------
     x2 : np.meshgrid of x coordinates
-    y2 : np.meshgrid of y coordinates 
-    z : the image data to fit       
+    y2 : np.meshgrid of y coordinates
+    z : the image data to fit
     fmodel : class model
         lmfit model generated from a 2d gaussian see setup_2d_gauss_model()
 
@@ -325,21 +340,23 @@ def fit_gauss2d_lm(x2, y2, z, fmodel):
     if settings.verbose:
         print("Found initial estimates: ", Ae, x0e, y0e, sxe, sye, thetae)
 
-    result = fmodel.fit(z,
-                        x=x2,
-                        y=y2,
-                        amplitude=Ae,
-                        offset=ofe,
-                        xo=x0e,
-                        yo=y0e,
-                        theta=thetae,
-                        sigma_x=sxe,
-                        sigma_y=sye)
+    result = fmodel.fit(
+        z,
+        x=x2,
+        y=y2,
+        amplitude=Ae,
+        offset=ofe,
+        xo=x0e,
+        yo=y0e,
+        theta=thetae,
+        sigma_x=sxe,
+        sigma_y=sye,
+    )
 
     if settings.verbose:
         print(result.fit_report())
 
-    return (result)
+    return result
 
 
 def fit_double_gauss2d_lm(x2, y2, z, fmodel):
@@ -349,8 +366,8 @@ def fit_double_gauss2d_lm(x2, y2, z, fmodel):
     Parameters
     ----------
     x2 : np.meshgrid of x coordinates
-    y2 : np.meshgrid of y coordinates 
-    z : the image data to fit       
+    y2 : np.meshgrid of y coordinates
+    z : the image data to fit
     fmodel : class Model
         lmfit model generated from two summed 2d gaussian see setup_double_2d_gauss_model()
 
@@ -360,79 +377,90 @@ def fit_double_gauss2d_lm(x2, y2, z, fmodel):
         see https://lmfit.github.io/lmfit-py/model.html#lmfit.model.ModelResult
     """
     A1e, ofe, x01e, y01e, sx1e, sy1e, theta1e, A2e, x02e, y02e = getestdbl2DGF(
-        x2, y2, z)
+        x2, y2, z
+    )
     if settings.verbose:
         print("Found initial estimates: ")
     printvars = [A1e, ofe, x01e, y01e, sx1e, sy1e, theta1e, A2e, x02e, y02e]
     printnames = [
-        'A1e', 'ofe', 'x01e', 'y01e', 'sx1e', 'sy1e', 'theta1e', 'A2e', 'x02e',
-        'y02e'
+        "A1e",
+        "ofe",
+        "x01e",
+        "y01e",
+        "sx1e",
+        "sy1e",
+        "theta1e",
+        "A2e",
+        "x02e",
+        "y02e",
     ]
     if settings.verbose:
         for i, v in enumerate(printvars):
             print("{}\t =\t {}".format(printnames[i], v))
 
-    result = fmodel.fit(z,
-                        x=x2,
-                        y=y2,
-                        amplitude_1=A1e,
-                        offset=ofe,
-                        xo_1=x01e,
-                        yo_1=y01e,
-                        sigma_x_1=sx1e,
-                        sigma_y_1=sy1e,
-                        theta_1=theta1e,
-                        amplitude_2=A2e,
-                        xo_2=x02e,
-                        yo_2=y02e)
+    result = fmodel.fit(
+        z,
+        x=x2,
+        y=y2,
+        amplitude_1=A1e,
+        offset=ofe,
+        xo_1=x01e,
+        yo_1=y01e,
+        sigma_x_1=sx1e,
+        sigma_y_1=sy1e,
+        theta_1=theta1e,
+        amplitude_2=A2e,
+        xo_2=x02e,
+        yo_2=y02e,
+    )
 
     if settings.verbose:
         print(result.fit_report())
 
-    return (result)
+    return result
 
 
 def setup_2d_gauss_model():
     """
-    setup an lmfit model based on the 2d gaussian (lm_gaus2d) with some limits 
+    setup an lmfit model based on the 2d gaussian (lm_gaus2d) with some limits
 
     Returns
     -------
     fmodel : class Model
 
     """
-    fmodel = lm.Model(lm_gaus2d, independent_vars=('x', 'y'), nan_policy = 'omit')
+    fmodel = lm.Model(lm_gaus2d, independent_vars=("x", "y"), nan_policy="omit")
     # 'amplitude', 'offset', 'xo', 'yo', 'theta', 'sigma_x', 'sigma_y'
-    fmodel.set_param_hint('sigma_x', min=0.1, max=5)
-    fmodel.set_param_hint('sigma_y', min=0.1, max=5)
-    fmodel.set_param_hint('theta', value=0, min=0, max=180)
-    return (fmodel)
+    fmodel.set_param_hint("sigma_x", min=0.1, max=5)
+    fmodel.set_param_hint("sigma_y", min=0.1, max=5)
+    fmodel.set_param_hint("theta", value=0, min=0, max=180)
+    return fmodel
 
 
 def setup_double_2d_gauss_model():
     """
-    setup an lmfit model based on summed 2d gaussian (lm_double_gaus2d) with some limits 
+    setup an lmfit model based on summed 2d gaussian (lm_double_gaus2d) with some limits
 
     Returns
     -------
     fmodel : class Model
 
     """
-    fmodel = lm.Model(lm_double_gaus2d, independent_vars=('x', 'y'), nan_policy = 'omit')
+    fmodel = lm.Model(lm_double_gaus2d, independent_vars=("x", "y"), nan_policy="omit")
     # x, y, amplitude_1, offset, xo_1, yo_1, theta_1, sigma_x_1, sigma_y_1,
     # amplitude_2, xo_2, yo_2, theta_2, sigma_x_2, sigma_y_2
-    fmodel.set_param_hint('amplitude_1', min=1)
-    fmodel.set_param_hint('amplitude_2', min=1)
- 
-    fmodel.set_param_hint('sigma_x_1', min=10, max=200)
-    fmodel.set_param_hint('sigma_y_1', min=10, max=200)
+    fmodel.set_param_hint("amplitude_1", min=1)
+    fmodel.set_param_hint("amplitude_2", min=1)
 
-    fmodel.set_param_hint('sigma_x_2', min=0.1, max=5)
-    fmodel.set_param_hint('sigma_y_2', min=0.1, max=5)
+    fmodel.set_param_hint("sigma_x_1", min=10, max=200)
+    fmodel.set_param_hint("sigma_y_1", min=10, max=200)
 
-    fmodel.set_param_hint('theta_1', value=0, min=0, max=180)
-    fmodel.set_param_hint('theta_2', value=0, min=0, max=180)
-    return (fmodel)
+    fmodel.set_param_hint("sigma_x_2", min=0.1, max=5)
+    fmodel.set_param_hint("sigma_y_2", min=0.1, max=5)
+
+    fmodel.set_param_hint("theta_1", value=0, min=0, max=180)
+    fmodel.set_param_hint("theta_2", value=0, min=0, max=180)
+    return fmodel
 
 
 def plot_test_gausians():
@@ -441,17 +469,37 @@ def plot_test_gausians():
     for sx in [12, 20]:
         for sy in [8, 13]:
             for th in [0, -90, 45]:
-                zary = np.array([[lm_gaus2d(x_v, y_v, amplitude=1, offset=0, xo=50, yo=50, theta=th, sigma_x=sx, sigma_y=sy) for x_v in xary] for y_v in yary])
+                zary = np.array(
+                    [
+                        [
+                            lm_gaus2d(
+                                x_v,
+                                y_v,
+                                amplitude=1,
+                                offset=0,
+                                xo=50,
+                                yo=50,
+                                theta=th,
+                                sigma_x=sx,
+                                sigma_y=sy,
+                            )
+                            for x_v in xary
+                        ]
+                        for y_v in yary
+                    ]
+                )
                 fig, ax = plt.subplots(1, 1)
                 ax.imshow(zary)
-                ax.set_title("s_x={}, s_y={}, theta={}".format(sx,sy,th))
+                ax.set_title("s_x={}, s_y={}, theta={}".format(sx, sy, th))
                 fig.draw()
 
     settings.blockingPlot = True
 
+
 if __name__ == "__main__":
     plot_test_gausians()
 
-
     if settings.blockingPlot:
-        input("press RETURN key to continue ...")  # this is here to stop plots from closing immediatly if you are not saving them
+        input(
+            "press RETURN key to continue ..."
+        )  # this is here to stop plots from closing immediatly if you are not saving them

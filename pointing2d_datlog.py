@@ -8,8 +8,9 @@ A class for logging arbitrary data to sequentialy nested dicts in a json like st
 
 """
 
-import os 
+import os
 import json
+
 
 class Logger:
     def __init__(self):
@@ -17,10 +18,10 @@ class Logger:
         self.categories = {}
 
     def log_variable(self, name, value):
-        if hasattr(value, '__dict__'):
+        if hasattr(value, "__dict__"):
             self.variables[name] = self._convert_to_dict(value)
-        elif hasattr(value, 'tolist'):
-            self.variables[name] = value.tolist() # np arrays are non serialisable
+        elif hasattr(value, "tolist"):
+            self.variables[name] = value.tolist()  # np arrays are non serialisable
         else:
             self.variables[name] = value
 
@@ -39,23 +40,25 @@ class Logger:
             return [self._convert_to_dict(item) for item in obj]
         elif isinstance(obj, dict):
             return {key: self._convert_to_dict(value) for key, value in obj.items()}
-        elif hasattr(obj, '__dict__'):
-            return {attr: self._convert_to_dict(getattr(obj, attr)) for attr in obj.__dict__}
+        elif hasattr(obj, "__dict__"):
+            return {
+                attr: self._convert_to_dict(getattr(obj, attr)) for attr in obj.__dict__
+            }
         else:
             return str(obj)
 
     def to_dict(self):
-        result = {'variables': self.variables}
+        result = {"variables": self.variables}
         for category_name, category_logger in self.categories.items():
             result[category_name] = category_logger.to_dict()
         return result
-    
+
     def save_to_file(self, fname):
-        filepath = '\\'.join(os.path.abspath(fname).split('\\')[:-1])
+        filepath = "\\".join(os.path.abspath(fname).split("\\")[:-1])
         if not os.path.exists(filepath):
             os.mkdir(filepath)
         try:
-            with open(fname, 'w') as f:
+            with open(fname, "w") as f:
                 json.dump(self.to_dict(), f)
         except:
             print(self.to_dict())
