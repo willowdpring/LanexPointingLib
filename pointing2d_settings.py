@@ -134,7 +134,7 @@ class Settings:
             else:
                 print("Warning: No input deck file provided,\nRunning Example Input")
                 print("Usage: python pointing2d_main.py <input_deck_path>")
-                input_deck_path = "EXAMPLES/LPL_Settings.json"
+                input_deck_path = "./EXAMPLES/LPL_Settings.json"
 
         input_deck_path = pathlib.Path(input_deck_path).resolve()
         input_deck_dir = input_deck_path.parent

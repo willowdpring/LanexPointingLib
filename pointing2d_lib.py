@@ -43,9 +43,6 @@ class NumpyEncoder(json.JSONEncoder):
 json._default_encoder = NumpyEncoder()
 
 
-
-
-
 def get_background(backgroundPath=None):
     """
     Returns the data array from the specified background image file
@@ -75,13 +72,13 @@ def get_background(backgroundPath=None):
     return backgroundData
 
 
-def check_calibration_transformation(exportDir, src, dst):
+def check_calibration_transformation(export_path, src, dst):
     """
     A small function for sanity checking the generated transformation on the iluminated image of the lanex
 
     Parameters
     ----------
-    exportDir : str
+    export_path : str
         the directory in which the output should be saved if saving
     src : np.array[,float32]
         source points in pixel coordinates
@@ -95,7 +92,7 @@ def check_calibration_transformation(exportDir, src, dst):
     pixelData = np.array(np.array(PIL.Image.open(settings.pointingCalibrationImage)))
     saveDir = None
     if settings.saving:
-        saveDir = exportDir
+        saveDir = export_path
     perspective.check_transformation(
         pixelData,
         src,
@@ -206,6 +203,8 @@ def generate_stats(export_path, src, dst, backgroundData=None):
 
     if settings.verbose:
         print(f"Found {len(tifFiles)} Tiff Files")
+
+    stats_path = export_path / f"stats"
 
     for file in tqdm(tifFiles[settings.start : settings.stop : settings.decimate]):
         name = file.stem
@@ -350,8 +349,8 @@ def generate_stats(export_path, src, dst, backgroundData=None):
                         extent=(x.min(), x.max(), y.min(), y.max()),
                     )
                     ax.contour(
-                        x,
-                        y,
+                        x2,
+                        y2,
                         fitted,
                         4,
                         colors="black",
@@ -420,7 +419,7 @@ def generate_stats(export_path, src, dst, backgroundData=None):
     return stats
 
 
-def generate_report(stats, exportDir):
+def generate_report(stats, export_path):
     report_figures = []
     ##
     #   Pointing:
@@ -668,7 +667,7 @@ def generate_report(stats, exportDir):
             settings.blockingPlot = True
 
 
-def save_u16_to_tiff(imDatIn, size, tiff_filename, norm=True):
+def save_u16_to_tiff(imDatIn, size, tiff_filename, norm=False):
     """
     ## https://blog.itsayellow.com/technical/saving-16-bit-tiff-images-with-pillow-in-python/# ##
 
@@ -676,7 +675,7 @@ def save_u16_to_tiff(imDatIn, size, tiff_filename, norm=True):
     save function to properly save a 16-bit TIFF.
     """
     # IF NORMALISING, RESCALE IMAE TO FILL 16 BIT
-
+    print(np.max(imDatIn))
     if norm:
         imDatIn = (imDatIn / imDatIn.max()) * (2**16 - 1)
 

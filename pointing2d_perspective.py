@@ -396,16 +396,23 @@ def get_dst_layout(src_shape, src, dst, pad, resolution):
         if settings.verbose:
             print("Calculating dst layout ... ", end="")
 
+        mean_src = np.mean(src,axis=0)
+
         src_h, src_w = src_shape
 
         src_pts    = np.array(src, dtype=np.float32)
-        dst_pts_px = np.array(dst, dtype=np.float32) * resolution
-        H          = getPerspectiveTransform(src_pts[:4], dst_pts_px[:4])
+        dst_pts_px = np.array(dst, dtype=np.float32)
+        H = getPerspectiveTransform(src_pts[:4], dst_pts_px[:4])
 
         src_corners = np.array(
             [[0, 0], [src_w, 0], [src_w, src_h], [0, src_h]], dtype=np.float32
         )
+ 
+        vprint(f"{src_corners = }")
+
         dst_corners = transformPoints(src_corners, H)
+
+        vprint(f"{dst_corners = }")
 
         min_x, min_y = dst_corners.min(axis=0)
         max_x, max_y = dst_corners.max(axis=0)
@@ -475,10 +482,12 @@ def check_transformation(
     print(f"Ratio (should be ~1) : {dst_sum/src_sum:.6f}")
 
     # ── Reconstruct H for the inverse overlay in panel 0 ─────────────────────
-    src_pts    = np.array(src, dtype=np.float32)
-    dst_pts_px = np.array(dst, dtype=np.float32) * resolution
-    H          = getPerspectiveTransform(src_pts[:4], dst_pts_px[:4])
+    H = get_transform(src, dst, dst_offset)
     H_inv      = np.linalg.inv(H)
+
+    src_mapped = transformPoints(src, H)
+    vprint(f"{src_mapped = }")
+
 
     # ── Plot ──────────────────────────────────────────────────────────────────
     fig, ax = plt.subplots(1, 3, figsize=(18, 8), width_ratios=(1.8, 2, 1.4))

@@ -78,11 +78,11 @@
     
     
     "_comment" :  "pixels/unit",
-    "resolution" : 10,  
+    "resolution" : 50,  
     
     
     "_comment" :  "the radius of the analysis box",
-    "zoom_radius" : 5,  
+    "zoom_radius" : 15,  
     
     
     "_comment" :  "The well lit photo of the lanex to visually inspect the transformation",
@@ -94,13 +94,13 @@
     
     
     "_comment" :  "a nudge to horizontal offset of the lanex in mm",
-    "dx" : 1.5,
+    "dx" : 0,
     
 
     "_comment" :  "measurements are taken in horizontal plane of the laser and the heights of the top and bottom corners of the lanex are calculated",
 
     "_comment" :  "[float] mm distance to the lanex plane in the axis of the laser",
-    "lanex_onAx_dist" : 1000,
+    "lanex_onAx_dist" : 2230,
 
 
     "_comment" :  "[float] deg angle of the normal of the lanex plane to the laser",
@@ -127,7 +127,7 @@
     "known_points" : [[[130.500,172.500], [80.000,161.000], [62.500,328.000], [130.500,266.000]],[[20.705,17.029],[13.406,14.304], [9.381,22.318], [20.015,22.058]]],
 
     "_comment" : " (vpad,hpad) = settings.src_padding * zoom", 
-    "dst_padding" : [2,1.1],
+    "dst_padding" : [1.1,1.1],
     
     
     "_comment" :  " [bool] if True the known points are given in spherical coords (without radius)",

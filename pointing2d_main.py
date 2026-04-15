@@ -56,7 +56,7 @@ def main(input_deck_path=None):
         else:
             stats = pointing2d_lib.generate_stats(export_path, src, dst, backgroundData)
 
-        report = pointing2d_lib.generate_report(stats, exportDir)
+        report = pointing2d_lib.generate_report(stats, export_path)
         
         if settings.blockingPlot:
             plt.show()
