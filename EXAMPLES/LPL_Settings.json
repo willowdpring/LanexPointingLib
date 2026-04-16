@@ -61,10 +61,27 @@
     "_comment" :  "[list[3|5|53]] the sequence of x-ray filters to apply [] for none (see backfiltlib.py)",
     "filters": [],
     
+    "_comment" :  "path to pixelmask image",
+    "mask_image" : null,
     
-    "_comment" :  "[array([[[x1,y1],[x2,y2]]])] list of paird x,y, coordinates for rectangles to be ignored for user defined regions",
-    "ignore_regions" : [], 
-    
+    "_comment" :  "[[bool,geometry,arguments]] Mask settings if a pixelmask is not being used. uses skimage.draw.<geometry> for geometry in ['ellipse','polygon']",
+    "_comment" :   " [False,'polygon',{'r':[20,25,60,55],'c':[40,57,48,31]}]",
+    "_comment" :   " #throw away stuff INSIDE a small elipse:",
+    "_comment" :   " [False,'ellipse',{'r':70,'c':70,'r_radius':10, 'c_radius':20,'rotation':0.5}]",
+    "_comment" :   " #ONLY KEEP stuff inside a big circle:",
+    "_comment" :   " [True,'ellipse',{'r':50,'c':50,'r_radius':40, 'c_radius':40,'rotation':0}]",
+
+    "mask_regions" : [[true,"polygon",{"r":[75,80,5,8,420,570],"c":[10,35,35,170,180,30]}],
+                      [false,"ellipse",{"r":130,"c":80,"r_radius":10,"c_radius":20,"rotation":1}],
+                      [false,"ellipse",{"r":130,"c":110,"r_radius":10,"c_radius":20,"rotation":-1}],
+                      [false,"ellipse",{"r":200,"c":130,"r_radius":30,"c_radius":8,"rotation":0}],
+                      [false,"ellipse",{"r":180,"c":60,"r_radius":25,"c_radius":8,"rotation":-0.05}],
+                      [false,"ellipse",{"r":270,"c":56,"r_radius":30,"c_radius":8,"rotation":0.1}],
+                      [false,"ellipse",{"r":280,"c":120,"r_radius":30,"c_radius":8,"rotation":-0.1}],
+                      [false,"ellipse",{"r":340,"c":70,"r_radius":20,"c_radius":10,"rotation":0.4}],
+                      [false,"ellipse",{"r":355,"c":94,"r_radius":20,"c_radius":10,"rotation":-0.45}]
+                      
+                    ],    
     
     "_comment" :  "the peak to mean value ratio above which the image is accepted as having electrons",
     "ignore_ptvs_below" : 2,   
