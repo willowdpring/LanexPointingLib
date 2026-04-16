@@ -1,17 +1,22 @@
-import matplotlib.pyplot as plt
+import csv
+import os
+
 import numpy as np
+import diplib as dip
+import matplotlib.pyplot as plt
+
+from PIL import Image
 from scipy.optimize import curve_fit
 from scipy.signal import convolve2d, savgol_filter
-from PIL import Image
+
 from pointing2d_backfiltlib import filterImage, walkDir, norm_gaus2d_ary
 from pointing2d_lib import load_dict_from_file, points_to_roi
-import os
-import pointing2d_fit as fit
-import csv
+
+from pointing2d_fit import setup_double_2d_gauss_model, fit_double_gauss2d_lm
+
 from tqdm import tqdm
 from pointing2d_datlog import Logger
 
-import diplib as dip
 
 points_file = rois_file = None
 """
@@ -149,7 +154,7 @@ analyse = {
 }
 Background = "D:\\Bunker C\\2022\\Dec 05\\Pointing Lanex\\Run005\\HE\\Run005-12052022163736-1.tiff"
 
-fmodel = fit.setup_double_2d_gauss_model()
+fmodel = setup_double_2d_gauss_model()
 
 if plotfit:
     if (
@@ -270,7 +275,7 @@ for day in days:
         if plotfit:
             x2, y2 = np.meshgrid(x, y)
 
-            result = fit.fit_double_gauss2d_lm(x2, y2, sub, fmodel)
+            result = fit_double_gauss2d_lm(x2, y2, sub, fmodel)
             fitted = fmodel.func(x2, y2, **result.best_values)
             flog.log_variable_to_category("fitting", "Fit Report", result.fit_report())
 

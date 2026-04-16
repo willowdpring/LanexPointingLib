@@ -5,10 +5,6 @@ import matplotlib.pyplot as plt
 from pylab import figure, cm
 from matplotlib.colors import LogNorm
 from scipy.signal import convolve
-from pointing2d_settings import settings
-from pointing2d_lib import get_background, save_u16_to_tiff
-import pointing2d_backfiltlib as backfilt
-import pointing2d_perspective as perspective
 from scipy.constants import e as electron_charge
 from tqdm import tqdm
 from skimage.feature import peak_local_max
@@ -16,6 +12,11 @@ import cv2
 from PIL import Image
 import diplib as dip
 from matplotlib.widgets import Slider, TextBox, Button
+
+from pointing2d_settings import settings
+from pointing2d_lib import get_background, save_u16_to_tiff
+from pointing2d_backfiltlib import walkDir, filterImage
+from pointing2d_perspective import TransformToLanexPlane
 
 
 ########################################################################
@@ -252,7 +253,7 @@ def integrate_lanex(
 
     """
 
-    files = backfilt.walkDir(folder)[include[0] : include[1]]
+    files = walkDir(folder)[include[0] : include[1]]
     exportDir = folder + "\\OUTPUT"
     outFile = exportDir + "\\total_signal{}.tiff".format(saveas)
     if not os.path.exists(exportDir):  # check if it exists
@@ -268,14 +269,14 @@ def integrate_lanex(
         bkg_dat = np.array(Image.open(background))
 
         for f in lanex_filters:
-            bkg_dat = backfilt.filterImage(bkg_dat, f)
+            bkg_dat = filterImage(bkg_dat, f)
     else:
         bkg_dat = np.zeros_like(np.array(Image.open(files[0])))
 
     bkg_smoothed = convolve(bkg_dat, kernel, mode="same")
 
     if doTransform:
-        bkg_trans, _ = perspective.TransformToLanexPlane(
+        bkg_trans, _ = TransformToLanexPlane(
             bkg_smoothed, np.array(src, np.float32), np.array(dst, np.float32)
         )
 
@@ -289,12 +290,12 @@ def integrate_lanex(
         im_dat = np.array(Image.open(image))
 
         for f in lanex_filters:
-            im_dat = backfilt.filterImage(im_dat, f)
+            im_dat = filterImage(im_dat, f)
 
         im_smoothed = convolve(im_dat, kernel, mode="same")
 
         if doTransform:
-            im_trans, _ = perspective.TransformToLanexPlane(
+            im_trans, _ = TransformToLanexPlane(
                 im_smoothed, np.array(src, np.float32), np.array(dst, np.float32)
             )
 

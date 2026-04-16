@@ -18,8 +18,66 @@ import matplotlib.pyplot as plt
 from numba import cfunc, carray
 from numba.types import CPointer, intc, intp, float64, voidptr
 from scipy import LowLevelCallable, ndimage
-from pointing2d_settings import settings
 from pathlib import Path
+
+from skimage.draw import polygon, ellipse
+
+from pointing2d_settings import settings
+
+# Functions for masking the input images
+
+
+def mask_shape(imshape,geometry,args):
+    # a helper function for build_mask
+    geometries = { # available skimage patches
+        'polygon':polygon,
+        'ellipse':ellipse
+        } 
+    
+    patch = geometries[geometry](**args)  
+    
+    mask = np.ones(imshape,dtype=bool)
+    mask[patch] = 0
+
+    return mask
+
+
+def get_mask(imshape):
+    
+    if all([settings.mask,settings.mask_regions,settings.mask_image]) is None:
+        settings.mask = np.ones(imshape,dtype = bool)
+
+    if settings.mask is None: # then either image or mask regions is not None
+        if settings.mask_image is not None: # then this takes precedence
+            mask = np.array(PIL.Image.open(settings.mask_image), dtype=bool) # untested
+
+        else: # we will build it from geometric patches
+            
+            mask = np.ones(imshape,dtype=bool)
+            
+            for patch in settings.mask_regions:
+                if not patch[0]:
+                    mask &= mask_shape(imshape,*patch[1:])    
+                else:
+                    mask &= ~mask_shape(imshape,*patch[1:])    
+    
+    if imshape != mask.shape:
+        print(f"{imshape = }\n{mask.shape = }")
+        raise IndexError("imshape != mask.shape")
+
+
+
+    return mask
+
+def plotmask(image):
+    mask = get_mask(image.shape)
+    fig,ax = plt.subplots(1,2,figsize = (7,7))
+    ax[0].imshow(image)
+    image[~mask] = 0
+    ax[1].imshow(image)
+    fig.show()
+
+
 
 # There are a series of functions for generating gaussian kernels:
 

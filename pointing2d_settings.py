@@ -56,8 +56,10 @@ class Settings:
         # --- Filtering ---
         self.kernel = "backfilt.norm_gaus2d_ary(12, 3, 12, 3)"  # [str] convolution kernel expression
         self.filters = [3, 3, 3, 3, 53, 53, 53, 53]  # [list] x-ray filter sequence
-        self.ignore_regions = []  # [list] paired x,y rect coords to ignore, e.g:
-        # [[[213,543],[223,553]], [[20,495],[120,555]]]
+        
+        self.mask_image = None
+        self.mask_regions = None 
+        self.mask = None # placeholder for source image mask
         self.ignore_ptvs_below = (
             12  # [float] peak-to-mean ratio threshold for electron acceptance
         )

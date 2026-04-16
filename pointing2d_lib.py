@@ -8,29 +8,31 @@ A generic library of supporting functions for pointing 2d
 
 """
 
-import numpy as np
-import os, sys, json
+import json
 import PIL
-from scipy.stats import norm
-from scipy.signal import convolve
-from pointing2d_settings import settings
-import pointing2d_backfiltlib as backfilt
-import pointing2d_perspective as perspective
-import pointing2d_fit as fit
-from pointing2d_fit import lm_double_gaus2d  # Ineeded for loading models from file
+import pickle
+
+import numpy as np
 import lmfit as lm
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from matplotlib import rc
+
 from tqdm import tqdm
-from scipy.optimize import curve_fit
-import pickle
 from pathlib import Path
+from scipy.optimize import curve_fit
 
-
-
-import json
-import numpy as np
+from scipy.signal import convolve
+from pointing2d_settings import settings
+from pointing2d_backfiltlib import (walkDir, 
+                                    filterImage)
+from pointing2d_perspective import (integral_preserving_warp, 
+                                    check_transformation, 
+                                    get_dst_layout)
+from pointing2d_fit import (lm_double_gaus2d, 
+                            setup_double_2d_gauss_model, 
+                            fit_double_gauss2d_lm)
 
 ## hack to json encode numpy
 
@@ -42,6 +44,13 @@ class NumpyEncoder(json.JSONEncoder):
 
 json._default_encoder = NumpyEncoder()
 
+
+def vprint(message, keep=False):
+    if settings.verbose:
+        if keep:
+            print(message,end="")
+        else:
+            print(message)
 
 def get_background(backgroundPath=None):
     """
@@ -61,7 +70,7 @@ def get_background(backgroundPath=None):
         kernel = eval(settings.kernel)
         backgroundData = np.array(PIL.Image.open(background))
         for f in settings.filters:
-            backgroundData = backfilt.filterImage(backgroundData, f)
+            backgroundData = filterImage(backgroundData, f)
 
         backgroundData = convolve(backgroundData, kernel, mode="same")
         noise_scale = np.percentile(backgroundData, settings.background_clip)
@@ -93,7 +102,7 @@ def check_calibration_transformation(export_path, src, dst):
     saveDir = None
     if settings.saving:
         saveDir = export_path
-    perspective.check_transformation(
+    check_transformation(
         pixelData,
         src,
         dst,
@@ -184,10 +193,11 @@ def integrate_gausians(x2, y2, result, src, dst):
     return integrals
 
 
-def generate_stats(export_path, src, dst, backgroundData=None):
-    fmodel = fit.setup_double_2d_gauss_model()
 
-    tifFiles = backfilt.walkDir(settings.targetDir)
+def generate_stats(export_path, src, dst, backgroundData=None):
+    fmodel = setup_double_2d_gauss_model()
+
+    tifFiles = walkDir(settings.targetDir)
     
     if settings.shortlist is not None:
         filtered = []
@@ -216,7 +226,7 @@ def generate_stats(export_path, src, dst, backgroundData=None):
         if savefile.exists() and not settings.overwrite:
             print(f"found fitresults for {savefile}")
             result = lm.model.load_modelresult(
-                str(savefile), {"lm_double_gaus2d": fit.lm_double_gaus2d}
+                str(savefile), {"lm_double_gaus2d": lm_double_gaus2d}
             )
 
             x2 = result.userkws["x"]
@@ -226,7 +236,7 @@ def generate_stats(export_path, src, dst, backgroundData=None):
             if settings.verbose:
                 print(f"using {len(settings.filters)} x-ray filters")
             for f in settings.filters:
-                pixel_data = backfilt.filterImage(pixelData, f)
+                pixel_data = filterImage(pixelData, f)
             if settings.verbose:
                 print(f"convolving with {settings.kernel}")
             pixelData = convolve(pixelData, kernel, mode="same")
@@ -252,11 +262,11 @@ def generate_stats(export_path, src, dst, backgroundData=None):
             pixelData = np.clip(pixelData - noise_scale, 0, np.inf)
 
             # ── Canvas dimensions and beam axis ──────────────────────────────────────
-            dst_size, dst_offset = perspective.get_dst_layout(pixelData.shape, src, dst, settings.dst_padding, settings.resolution)
+            dst_size, dst_offset = get_dst_layout(pixelData.shape, src, dst, settings.dst_padding, settings.resolution)
             
         
             # ── Apply warp with Jacobian correction ───────────────────────────────────
-            transformed, axis, _ = perspective.integral_preserving_warp(
+            transformed, axis, _ = integral_preserving_warp(
                 pixelData, dst_size, dst_offset, src, dst
             )
 
@@ -278,15 +288,11 @@ def generate_stats(export_path, src, dst, backgroundData=None):
             if settings.plotBackgroundSubtraction:
                 roi_pre = roi
 
-            for region in settings.ignore_regions:
-                try:
-                    roi[region[0][0] : region[1][0], region[0][1] : region[1][1]] = (
-                        np.percentile(roi, 10)
-                    )
-                except IndexError:
-                    print("ignore region {} is invalid".format(region))
+            #if mask is not None:
+            #    continue ## TODO: 
+
             for f in settings.filters:
-                roi = backfilt.filterImage(roi, f)
+                roi = filterImage(roi, f)
 
             if np.max(roi) > settings.ignore_ptvs_below * np.mean(roi):
 
@@ -313,7 +319,7 @@ def generate_stats(export_path, src, dst, backgroundData=None):
 
                 x2, y2 = np.meshgrid(x, y)
 
-                result = fit.fit_double_gauss2d_lm(x2, y2, roi, fmodel)
+                result = fit_double_gauss2d_lm(x2, y2, roi, fmodel)
                 best_values = result.best_values
             else:
                 print(

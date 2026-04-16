@@ -14,17 +14,12 @@ from cv2 import (
     INTER_LINEAR
 )
 from pointing2d_settings import settings
-import pointing2d_fit as fit
-import pointing2d_lib
+
 from scipy.interpolate import griddata
 
+from pointing2d_lib import vprint
 
-def vprint(message, keep=False):
-    if settings.verbose:
-        if keep:
-            print(message,end="")
-        else:
-            print(message)
+
 
 def ceil2(num): # rounding up to a power of 2
     return np.pow(np.ceil(np.log2(num)), 2)

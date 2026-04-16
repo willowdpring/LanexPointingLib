@@ -12,7 +12,7 @@ import numpy as np
 import lmfit as lm
 import matplotlib.pyplot as plt
 from pointing2d_settings import settings
-
+from pointing2d_lib import vprint
 
 def lm_gaus2d(x, y, amplitude, offset, xo, yo, theta, sigma_x, sigma_y):
     """
@@ -398,6 +398,10 @@ def fit_double_gauss2d_lm(x2, y2, z, fmodel):
         for i, v in enumerate(printvars):
             print("{}\t =\t {}".format(printnames[i], v))
 
+    if settings.mask is not None:
+        vprint("masking")
+    weights = settings.mask
+
     result = fmodel.fit(
         z,
         x=x2,
@@ -412,10 +416,10 @@ def fit_double_gauss2d_lm(x2, y2, z, fmodel):
         amplitude_2=A2e,
         xo_2=x02e,
         yo_2=y02e,
+        weights = weights
     )
 
-    if settings.verbose:
-        print(result.fit_report())
+    vprint(result.fit_report())
 
     return result
 

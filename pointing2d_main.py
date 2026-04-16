@@ -8,15 +8,14 @@ the __main__ file that should be run
 
 """
 import numpy as np
-import os
-import matplotlib.pyplot as plt
-from pointing2d_settings import settings
-import pointing2d_perspective as perspective
-import pointing2d_lib
 import pickle
-import sys
-import json
+
+import matplotlib.pyplot as plt
+
 from pathlib import Path
+
+import LANEXPOINTINGLIB
+
 
 def main(input_deck_path=None):
     
@@ -27,7 +26,7 @@ def main(input_deck_path=None):
 
         export_path.mkdir(parents=True, exist_ok=True)
 
-        src, dst = perspective.src_dst_from_known_points(settings.known_points,
+        src, dst = src_dst_from_known_points(settings.known_points,
                                                     settings.units,
                                                     settings.resolution,
                                                     settings.lanex_onAx_dist, 
@@ -36,9 +35,9 @@ def main(input_deck_path=None):
                                                     settings.lanex_height,
                                                     settings.lanex_vertical_offset)
 
-        pointing2d_lib.check_calibration_transformation(str(export_path), src, dst)
+        check_calibration_transformation(str(export_path), src, dst)
         
-        backgroundData = pointing2d_lib.get_background()
+        backgroundData = get_background()
 
         stats_pickle = export_path / "stats.pickle"
         stats_npy = export_path / "stats.npy"
@@ -54,9 +53,9 @@ def main(input_deck_path=None):
             stats = np.load(stats_npy, allow_pickle=True)
 
         else:
-            stats = pointing2d_lib.generate_stats(export_path, src, dst, backgroundData)
+            stats = generate_stats(export_path, src, dst, backgroundData)
 
-        report = pointing2d_lib.generate_report(stats, export_path)
+        report = generate_report(stats, export_path)
         
         if settings.blockingPlot:
             plt.show()
