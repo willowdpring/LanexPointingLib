@@ -54,12 +54,13 @@ class Settings:
         )
 
         # --- Filtering ---
-        self.kernel = "backfilt.norm_gaus2d_ary(12, 3, 12, 3)"  # [str] convolution kernel expression
+        self.kernel = "norm_gaus2d_ary(12, 3, 12, 3)"  # [str] convolution kernel expression
         self.filters = [3, 3, 3, 3, 53, 53, 53, 53]  # [list] x-ray filter sequence
         
         self.mask_image = None
         self.mask_regions = None 
-        self.mask = None # placeholder for source image mask
+        self.src_mask = None # placeholder for source image mask
+        self.dst_mask = None # placeholder for dst image mask
         self.ignore_ptvs_below = (
             12  # [float] peak-to-mean ratio threshold for electron acceptance
         )
@@ -205,13 +206,10 @@ class Settings:
                 msg += "\t{}\n".format(e)
                 ers = True
 
-        if not ers:
-            return True
-        else:
-            msg += "please edit the input JSON and try again"
-            print(msg)
-            return False
 
+        msg += "please edit the input JSON and try again"
+        
+        assert(not ers, msg)
 
 settings = Settings()
 

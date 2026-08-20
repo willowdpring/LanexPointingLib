@@ -43,11 +43,11 @@
     
     
     "_comment" :  "[int] the percentile below which the background data is ignored",
-    "background_clip" : 40,
+    "background_clip" : 0,
     
     
     "_comment" : "[float] a multiplicative factor applied to the background data",
-    "background_scale" : 0.8, 
+    "background_scale" : 100, 
     
     
     "_comment" :  "[bool] if True we will generate a plot before and after subtracting the backgtround to check",
@@ -55,7 +55,7 @@
     
     
     "_comment" :  "[string] when evaluated this should make the The convolution kernel applied before background subtraction",
-    "kernel" : "backfilt.norm_gaus2d_ary(1, 3, 1, 3)",  
+    "kernel" : "norm_gaus2d_ary(1, 3, 1, 3)",  
     
     
     "_comment" :  "[list[3|5|53]] the sequence of x-ray filters to apply [] for none (see backfiltlib.py)",
@@ -84,22 +84,22 @@
                     ],    
     
     "_comment" :  "the peak to mean value ratio above which the image is accepted as having electrons",
-    "ignore_ptvs_below" : 2,   
+    "ignore_ptvs_below" : 2 ,   
     
     
     "_comment" : "The transformation is generated from four known points, pixel values in the first and [x,y,z] in the second  with the laser along z and the target at origin [theta, phi] coordinates can be used if the toggle is set to true",
     
 
     "_comment" :  "units/radian",
-    "units" : 1000,  
+    "units" : 1000 ,  
     
     
     "_comment" :  "pixels/unit",
-    "resolution" : 50,  
+    "resolution" : 50 , 
     
     
     "_comment" :  "the radius of the analysis box",
-    "zoom_radius" : 15,  
+    "zoom_radius" : 15 , 
     
     
     "_comment" :  "The well lit photo of the lanex to visually inspect the transformation",

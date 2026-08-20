@@ -23,7 +23,9 @@ from scipy.signal import convolve
 
 from skimage.draw import polygon, ellipse
 
-from . import settings
+from _settings_cache import settings
+from _misc import vprint
+from perspective import get_transform, src_dst_from_known_points, get_dst_layout, color_preserving_warp, integral_preserving_warp
 
 # Functions for masking the input images
 def mask_shape(imshape,geometry,args):
@@ -40,12 +42,12 @@ def mask_shape(imshape,geometry,args):
 
     return mask
 
-def get_mask(imshape):
+def get_src_mask(imshape):
     
-    if all([settings.mask,settings.mask_regions,settings.mask_image]) is None:
-        settings.mask = np.ones(imshape,dtype = bool)
+    if any(x is None for x in [settings.src_mask, settings.mask_regions, settings.mask_image]):
+        mask = np.ones(imshape,dtype = bool)
 
-    if settings.mask is None: # then either image or mask regions is not None
+    elif settings.src_mask is None: # then either image or mask regions is not None
         if settings.mask_image is not None: # then this takes precedence
             mask = np.array(PIL.Image.open(settings.mask_image), dtype=bool) # untested
 
@@ -59,21 +61,73 @@ def get_mask(imshape):
                 else:
                     mask &= ~mask_shape(imshape,*patch[1:])    
     
+        settings.src_mask = mask
+
+    else:
+        mask = settings.src_mask # load already found mask
+
     if imshape != mask.shape:
         print(f"{imshape = }\n{mask.shape = }")
         raise IndexError("imshape != mask.shape")
 
-
-
     return mask
 
-def plotmask(image):
-    mask = get_mask(image.shape)
+def plot_src_mask(image):
+    mask = get_src_mask(image.shape)
     fig,ax = plt.subplots(1,2,figsize = (7,7))
     ax[0].imshow(image)
     image[~mask] = 0
     ax[1].imshow(image)
     fig.show()
+
+
+def get_dst_mask(src_mask, src, dst, dst_size, dst_offset):
+    if settings.dst_mask is None:
+        transformed_mask, _ = color_preserving_warp(src_mask.astype(float), dst_size, dst_offset, src, dst)
+        dst_mask = np.zeros(dst_size[::-1], dtype=bool)
+        dst_mask[transformed_mask>0.5] = True
+        settings.dst_mask = dst_mask
+
+    return settings.dst_mask
+
+
+def plot_dst_mask(src_image):
+    fig,ax = plt.subplots(2,2,figsize = (7,7))
+
+    src_mask = get_src_mask(src_image.shape)
+    ax[0,0].imshow(src_image)
+
+
+    src, dst = src_dst_from_known_points(settings)
+    dst_size, dst_offset = get_dst_layout(src_mask.shape, src, dst, settings.dst_padding, settings.resolution)
+    dst_mask = get_dst_mask(src_mask, src, dst, dst_size, dst_offset)
+
+    dst_image = integral_preserving_warp(src_image,dst_size,dst_offset,src,dst)[0]
+    ax[1,0].imshow(dst_image)
+
+    src_image[~src_mask] = 0
+    ax[0,1].imshow(src_image)
+
+    dst_image[~dst_mask] = 0
+    ax[1,1].imshow(dst_image)
+
+    fig.show()
+
+# Functions for masking the input images
+def mask_shape(imshape,geometry,args):
+    # a helper function for build_mask
+    geometries = { # available skimage patches
+        'polygon':polygon,
+        'ellipse':ellipse
+        } 
+    
+    patch = geometries[geometry](**args)  
+    
+    mask = np.ones(imshape,dtype=bool)
+    mask[patch] = 0
+
+    return mask
+
 
 
 # There are a series of functions for generating gaussian kernels:

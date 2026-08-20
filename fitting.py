@@ -351,7 +351,7 @@ def fit_gauss2d_lm(x2, y2, z, fmodel):
 
     return result
 
-def fit_double_gauss2d_lm(x2, y2, z, fmodel):
+def fit_double_gauss2d_lm(x2, y2, z, fmodel, weights = None):
     """
     uses lmfit (https://lmfit.github.io/lmfit-py/) to fit a double 2d gaussian to the data
 
@@ -371,8 +371,7 @@ def fit_double_gauss2d_lm(x2, y2, z, fmodel):
     A1e, ofe, x01e, y01e, sx1e, sy1e, theta1e, A2e, x02e, y02e = getestdbl2DGF(
         x2, y2, z
     )
-    if settings.verbose:
-        print("Found initial estimates: ")
+    vprint("Found initial estimates: ")
     printvars = [A1e, ofe, x01e, y01e, sx1e, sy1e, theta1e, A2e, x02e, y02e]
     printnames = [
         "A1e",
@@ -386,13 +385,8 @@ def fit_double_gauss2d_lm(x2, y2, z, fmodel):
         "x02e",
         "y02e",
     ]
-    if settings.verbose:
-        for i, v in enumerate(printvars):
-            print("{}\t =\t {}".format(printnames[i], v))
-
-    if settings.mask is not None:
-        vprint("masking")
-    weights = settings.mask
+    for i, v in enumerate(printvars):
+        vprint("{}\t =\t {}".format(printnames[i], v))
 
     result = fmodel.fit(
         z,
@@ -431,7 +425,6 @@ def setup_2d_gauss_model():
     fmodel.set_param_hint("theta", value=0, min=0, max=180)
     return fmodel
 
-
 def setup_double_2d_gauss_model():
     """
     setup an lmfit model based on summed 2d gaussian (lm_double_gaus2d) with some limits
@@ -456,7 +449,6 @@ def setup_double_2d_gauss_model():
     fmodel.set_param_hint("theta_1", value=0, min=0, max=180)
     fmodel.set_param_hint("theta_2", value=0, min=0, max=180)
     return fmodel
-
 
 def plot_test_gausians():
     xary = np.linspace(1, 100, 100, endpoint=True)
@@ -489,7 +481,6 @@ def plot_test_gausians():
                 fig.draw()
 
     settings.blockingPlot = True
-
 
 if __name__ == "__main__":
     plot_test_gausians()

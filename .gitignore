@@ -3,3 +3,4 @@ __pycache__/*
 __pycache__
 EXAMPLES/DATA/EXPORTED/*
 EXAMPLES/DATA/TRANSFORMED/*
+.vscode

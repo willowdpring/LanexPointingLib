@@ -23,7 +23,7 @@ from tqdm import tqdm
 from backfilt import walkDir, filterImage
 from fitting import lm_double_gaus2d,setup_double_2d_gauss_model, fit_double_gauss2d_lm
 from perspective import integral_preserving_warp, src_dst_from_known_points, get_dst_layout
-from backfilt import get_background
+from backfilt import get_background, get_dst_mask, get_src_mask, norm_gaus2d_ary, generateAndPlotBackgrounds
 
 
 def generate_stats(export_path, src, dst, backgroundData=None):
@@ -116,8 +116,8 @@ def generate_stats(export_path, src, dst, backgroundData=None):
             if settings.plotBackgroundSubtraction:
                 roi_pre = roi
 
-            #if mask is not None:
-            #    continue ## TODO: 
+            src_mask = get_src_mask(pixelData.shape)
+            weights_mask = get_dst_mask(src_mask, src, dst, dst_size, dst_offset)
 
             for f in settings.filters:
                 roi = filterImage(roi, f)
@@ -146,8 +146,9 @@ def generate_stats(export_path, src, dst, backgroundData=None):
                 )
 
                 x2, y2 = np.meshgrid(x, y)
+                
 
-                result = fit_double_gauss2d_lm(x2, y2, roi, fmodel)
+                result = fit_double_gauss2d_lm(x2, y2, roi, fmodel, weights_mask)
                 best_values = result.best_values
             else:
                 print(
@@ -503,43 +504,38 @@ def main(input_deck_path=None):
     
     settings.update_user_settings(input_deck_path=input_deck_path)
     
-    if settings.assert_reasonable():
-        export_path = Path(settings.targetDir) / "EXPORTED"  # name the subdirectory to export to
+    settings.assert_reasonable()
 
-        export_path.mkdir(parents=True, exist_ok=True)
+    export_path = Path(settings.targetDir) / "EXPORTED"  # name the subdirectory to export to
 
-        src, dst = src_dst_from_known_points(settings.known_points,
-                                                    settings.units,
-                                                    settings.resolution,
-                                                    settings.lanex_onAx_dist, 
-                                                    settings.lanex_theta, 
-                                                    settings.lanex_inPlane_dist, 
-                                                    settings.lanex_height,
-                                                    settings.lanex_vertical_offset)
+    export_path.mkdir(parents=True, exist_ok=True)
 
-        backgroundData = get_background()
+    src, dst = src_dst_from_known_points(settings)
 
-        stats_pickle = export_path / "stats.pickle"
-        stats_npy = export_path / "stats.npy"
+    #generateAndPlotBackgrounds(settings.background_dir)
+    backgroundData = get_background()
 
-        if stats_pickle.exists() and not settings.overwrite:
-            print("found existing pikle stats file in export directory")
-            
-            with open(stats_pickle, 'rb') as handle:
-                 stats = pickle.load(handle)
-        elif stats_npy.exists() and not settings.overwrite:
-            print("found existing numpy stats file in export directory")
+    stats_pickle = export_path / "stats.pickle"
+    stats_npy = export_path / "stats.npy"
 
-            stats = np.load(stats_npy, allow_pickle=True)
-
-        else:
-            stats = generate_stats(export_path, src, dst, backgroundData)
-
-        report = generate_report(stats, export_path)
+    if stats_pickle.exists() and not settings.overwrite:
+        print("found existing pikle stats file in export directory")
         
-        if settings.blockingPlot:
-            plt.show()
-            input("close? : ")
+        with open(stats_pickle, 'rb') as handle:
+                stats = pickle.load(handle)
+    elif stats_npy.exists() and not settings.overwrite:
+        print("found existing numpy stats file in export directory")
+
+        stats = np.load(stats_npy, allow_pickle=True)
+
+    else:
+        stats = generate_stats(export_path, src, dst, backgroundData)
+
+    report = generate_report(stats, export_path)
+    
+    if settings.blockingPlot:
+        plt.show()
+        input("close? : ")
   
 if __name__ == "__main__":
     main()

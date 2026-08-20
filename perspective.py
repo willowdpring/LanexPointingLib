@@ -28,11 +28,12 @@ def cart2sph(x, y, z):
     az = m.atan2(y, x)  # phi
     return r, elev, az
     
-def src_dst_from_known_points(known_points, units, resolution, lanex_onAx_dist, lanex_theta, lanex_inPlane_dist, lanex_height, lanex_vertical_offset):
+def src_dst_from_known_points(settings):
     """
     generates src, dst arrays for the perspective transform
 
     Parameters
+    settings object that must contain:
     ----------
     known_points :
         tuple(list[4](tuple)) ie [[[px1,py1], ...][[Lx1,Ly1], ...] with lanex coords in mm from center
@@ -66,34 +67,18 @@ def src_dst_from_known_points(known_points, units, resolution, lanex_onAx_dist, 
         list of destination points in theta phi [rad/units]
 
     """
-    if len(known_points) == 2 and len(known_points[0]) == 4:
+
+
+    if len(settings.known_points) == 2 and len(settings.known_points[0]) == 4:
         vprint("pixel and mm coordinates provided in full:")
-        return known_points_from_PX_LX(
-            known_points,
-            units,
-            resolution,
-            lanex_onAx_dist,
-            lanex_theta,
-            lanex_inPlane_dist,
-            lanex_height,
-            lanex_vertical_offset,
-        )
+        return src_dst_from_PX_LX(settings)
     else:
         vprint("assuming ruler marks on lanex, height determined by .lanex_height ")
-        return known_points_from_ruler_marks(
-            known_points,
-            units,
-            resolution,
-            lanex_onAx_dist,
-            lanex_theta,
-            lanex_inPlane_dist,
-            lanex_height,
-            lanex_vertical_offset,
-        )
+        return src_dst_from_ruler_marks(settings)
 
     return None
     
-def known_points_from_PX_LX(known_points,units,resolution,lanex_onAx_dist,lanex_theta,lanex_inPlane_dist,lanex_height,lanex_vertical_offset):
+def src_dst_from_PX_LX(settings):
     """
     generates src, dst arrays for the perspective transform
 
@@ -104,10 +89,10 @@ def known_points_from_PX_LX(known_points,units,resolution,lanex_onAx_dist,lanex_
     src = []
     dst = []
 
-    cosT = np.cos(np.radians(lanex_theta))
-    sinT = np.sin(np.radians(lanex_theta))
+    cosT = np.cos(np.radians(settings.lanex_theta))
+    sinT = np.sin(np.radians(settings.lanex_theta))
 
-    centroid = np.mean(known_points[1], axis=0) - [settings.dx, settings.dh]
+    centroid = np.mean(settings.known_points[1], axis=0) - [settings.dx, settings.dh]
 
     # Step 2: Calculate the angle of each point relative to the centroid
     def angle_from_centroid(point):
@@ -117,20 +102,20 @@ def known_points_from_PX_LX(known_points,units,resolution,lanex_onAx_dist,lanex_
         # Return the angle of the point relative to the x-axis
         return np.arctan2(dy, dx)
 
-    angles = [angle_from_centroid(px) for px in known_points[1]]
+    angles = [angle_from_centroid(px) for px in settings.known_points[1]]
     sorted_indices = np.argsort(angles)
 
     # Step 3: Sort points based on the angle
-    sorted_px = [known_points[0][i] for i in sorted_indices]
-    sorted_lx = [np.subtract(known_points[1][i], centroid) for i in sorted_indices]
+    sorted_px = [settings.known_points[0][i] for i in sorted_indices]
+    sorted_lx = [np.subtract(settings.known_points[1][i], centroid) for i in sorted_indices]
 
     for i, PX in enumerate(sorted_px):
         LX = sorted_lx[i]
         vprint("mapping {} to {}".format(PX, LX))
         src.append(PX)
 
-        x = -cosT * (lanex_inPlane_dist + LX[0])
-        z = lanex_onAx_dist - sinT * (lanex_inPlane_dist + LX[0])
+        x = -cosT * (settings.lanex_inPlane_dist + LX[0])
+        z = settings.lanex_onAx_dist - sinT * (settings.lanex_inPlane_dist + LX[0])
 
         y = LX[1]
 
@@ -138,13 +123,14 @@ def known_points_from_PX_LX(known_points,units,resolution,lanex_onAx_dist,lanex_
 
         vprint("x:{}, y:{}, z:{}".format(x, y, z))
         vprint("r:{}, theta:{}, phi:{}".format(r, t, p))
-        dst.append([units * resolution * t, units * resolution * p])
+        scale = settings.units * settings.resolution
+        dst.append([scale * t, scale * p])
 
     vprint("src: {}\ndst: {}".format(src, dst))
 
     return(np.array(src), np.array(dst))
 
-def known_points_from_ruler_marks(known_points,units,resolution,lanex_onAx_dist,lanex_theta,lanex_inPlane_dist,lanex_height,lanex_vertical_offset):
+def src_dst_from_ruler_marks(settings):
     """
     generates src, dst arrays for the perspective transform
 
@@ -152,32 +138,32 @@ def known_points_from_ruler_marks(known_points,units,resolution,lanex_onAx_dist,
     ----------
     see src_dst_from_known_points
     """
-    if settings.verbose:
-        print("Generating transformation coords from known points: ")
+    vprint("Generating transformation coords from known points: ")
 
     order = ["TR", "BR", "BL", "TL"]
 
     src = []
     dst = []
 
-    cosT = np.cos(np.radians(lanex_theta))
-    sinT = np.sin(np.radians(lanex_theta))
+    cosT = np.cos(np.radians(settings.lanex_theta))
+    sinT = np.sin(np.radians(settings.lanex_theta))
 
     for corner in order:
         vprint("{} Corner".format(corner))
-        src.append([known_points[corner][1], known_points[corner][2]])
+        src.append([settings.known_points[corner][1], settings.known_points[corner][2]])
 
-        x = -cosT * (lanex_inPlane_dist + known_points[corner][0])
-        z = lanex_onAx_dist - sinT * (lanex_inPlane_dist + known_points[corner][0])
+        x = -cosT * (settings.lanex_inPlane_dist + settings.known_points[corner][0])
+        z = settings.lanex_onAx_dist - sinT * (settings.lanex_inPlane_dist + settings.known_points[corner][0])
 
         if "T" in corner:
-            y = lanex_vertical_offset + (0.5 * lanex_height)
+            y = settings.lanex_vertical_offset + (0.5 * settings.lanex_height)
         else:
-            y = lanex_vertical_offset - (0.5 * lanex_height)
+            y = settings.lanex_vertical_offset - (0.5 * settings.lanex_height)
         r, p, t = cart2sph(z, x, y)
         vprint("x:{}, y:{}, z:{}".format(x, y, z))
         vprint("r:{}, theta:{}, phi:{}".format(r, t, p))
-        dst.append([units * resolution * t, units * resolution * p])
+        scale = settings.units * settings.resolution 
+        dst.append([scale * t, scale* p])
     vprint("src: {}\ndst: {}".format(src, dst))
 
     return (np.array(src), np.array(dst))
@@ -348,6 +334,43 @@ def integral_preserving_warp(src_img, dst_size, dst_offset, src, dst):
     dst_corrected = (warped * weight_map).astype(np.float32)
 
     return dst_corrected, (cx, cy), jac
+
+def color_preserving_warp(src_img, dst_size, dst_offset, src, dst):
+    """
+    Warp src_img by a perspective transform defined by src->dst point
+    correspondences, placing the coordinate origin at dst_offset, with
+    Jacobian correction to preserve the image integral.
+
+    Parameters
+    ----------
+    src_img : 2D np.ndarray
+        Input image.
+    dst_size : tuple (dst_w, dst_h)
+        Output canvas size in pixels.
+    dst_offset : tuple (cx, cy)
+        Pixel coordinates of the beam axis (origin) in the dst canvas.
+    src : array-like, shape (4, 2)
+        Source reference points in pixel coordinates.
+    dst : array-like, shape (4, 2)
+        Destination reference points (e.g. theta/phi).
+
+    Returns
+    -------
+    dst_corrected : np.ndarray, float32, shape (dst_h, dst_w)
+        Warped and intensity-corrected image.
+    jac : np.ndarray, float32, shape (dst_h, dst_w)
+        Jacobian determinant map.
+    axis : tuple (cx, cy)
+        Beam axis position in dst — i.e. dst_offset, echoed for convenience.
+    """
+    dst_w, dst_h = dst_size
+    cx, cy       = dst_offset
+
+    H          = get_transform(src, dst, dst_offset)
+    warped     = warpPerspective(src_img, H, (int(dst_w), int(dst_h)),
+                                     flags=INTER_LINEAR)
+
+    return warped, (cx, cy)
 
 def get_dst_layout(src_shape, src, dst, pad, resolution):
     """
@@ -566,14 +589,7 @@ def check_transformation(
 
 def main():
     settings.update_user_settings(None)
-    src, dst = src_dst_from_known_points(settings.known_points, 
-                                        settings.units, 
-                                        settings.resolution, 
-                                        settings.lanex_onAx_dist, 
-                                        settings.lanex_theta, 
-                                        settings.lanex_inPlane_dist, 
-                                        settings.lanex_height, 
-                                        settings.lanex_vertical_offset)
+    src, dst = src_dst_from_known_points(settings)
     
     pixelData = np.array(PIL.Image.open(settings.pointingCalibrationImage))
     
